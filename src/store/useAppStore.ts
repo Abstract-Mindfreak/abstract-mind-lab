@@ -95,13 +95,20 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'abstract-mind-lab-ui',
+      version: 2,
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<AppState> | undefined
+
+        return {
+          selectedPromptId: state?.selectedPromptId ?? null,
+          searchQuery: state?.searchQuery ?? '',
+          groupByPath: state?.groupByPath ?? '',
+        }
+      },
       partialize: (state) => ({
-        activeDirectory: state.activeDirectory,
-        promptBlocks: state.promptBlocks,
         selectedPromptId: state.selectedPromptId,
         searchQuery: state.searchQuery,
         groupByPath: state.groupByPath,
-        statusMessage: state.statusMessage,
       }),
     },
   ),
