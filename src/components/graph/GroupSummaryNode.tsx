@@ -1,4 +1,4 @@
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflow/react'
 import { Trans, useTranslation } from 'react-i18next'
 
 type GroupSummaryNodeData = {
@@ -9,11 +9,12 @@ type GroupSummaryNodeData = {
 
 export type GroupSummaryNodeType = Node<GroupSummaryNodeData, 'groupSummary'>
 
-export function GroupSummaryNode({ data }: NodeProps<GroupSummaryNodeType>) {
+export function GroupSummaryNode({ data, selected }: NodeProps<GroupSummaryNodeType>) {
   const { t } = useTranslation()
 
   return (
     <div className="min-w-[220px] rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-4 py-3 shadow-lg shadow-emerald-950/25">
+      <NodeResizer color="#34d399" isVisible={selected} minHeight={100} minWidth={200} />
       <Handle position={Position.Right} type="source" />
       <div className="space-y-2">
         <div className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">

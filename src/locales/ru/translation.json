@@ -5,8 +5,11 @@
   "tabs": {
     "promptList": "Список промптов",
     "graphCanvas": "Холст графа",
+    "jsonPreview": "Просмотр JSON",
     "jsonInspector": "Инспектор JSON",
-    "diffAnalytics": "Анализ различий"
+    "diffAnalytics": "Анализ различий",
+    "terminal": "Терминал / Системные логи",
+    "settings": "Настройки"
   },
   "promptList": {
     "eyebrow": "Список промптов",
@@ -17,6 +20,7 @@
     "refreshBlocks": "Обновить блоки",
     "analyzeGroupStructure": "Анализировать структуру группы",
     "openFileGraph": "Открыть",
+    "openInNewTab": "В новой вкладке",
     "directoryNotSelected": "Директория не выбрана",
     "directoryApiUnavailable": "File System Access API недоступен в этом браузере",
     "directoryName": "{{name}}",
@@ -43,6 +47,7 @@
     "noEnumerableKeys": "Нет перечислимых ключей",
     "emptyTitle": "Нет блоков для отображения",
     "openFileGraph": "Открыть",
+    "openInNewTab": "Открыть в новой вкладке",
     "returnToDataset": "Вернуться к общему графу",
     "focusModeTitle": "Изолированный просмотр файла",
     "focusModeDescription": "Холст показывает только структуру выбранного JSON-файла и его составные части.",
@@ -62,7 +67,9 @@
     "emptyState": "Файл пока не выбран.",
     "schemaTitle": "Схема группы",
     "schemaDescription": "Сгенерирована по {{count}} отфильтрованным JSON-объектам.",
-    "schemaEmpty": "Схема группы пока не построена."
+    "schemaEmpty": "Схема группы пока не построена.",
+    "draftSubtitle": "Черновой редактор JSON",
+    "draftHint": "Этот редактор открыт как черновик. Содержимое можно менять прямо в Monaco."
   },
   "diffAnalytics": {
     "eyebrow": "Анализ различий",
@@ -81,7 +88,31 @@
     "fromValue": "Было",
     "toValue": "Стало",
     "arrayDelta": "Изменения в массиве",
-    "movedOrSpecial": "Специальное изменение"
+    "movedOrSpecial": "Специальное изменение",
+    "multiSelectionTitle": "Групповое выделение: {{count}} нод",
+    "multiSelectionKeys": "Ключи верхнего уровня: {{keys}}"
+  },
+  "terminal": {
+    "title": "Терминал / Системные логи",
+    "description": "Лента системных событий, загрузок и результатов парсинга базы.",
+    "empty": "Логи пока не накоплены."
+  },
+  "settings": {
+    "title": "Панель управления",
+    "description": "Глобальные настройки интерфейса, тем и отображения графа.",
+    "showMiniMap": "Показывать mini-map",
+    "showEdgeLabels": "Показывать подписи связей",
+    "fontSize": "Размер шрифта",
+    "fontXSmall": "x-small",
+    "fontMedium": "medium",
+    "fontLarge": "large",
+    "theme": "Тема оформления",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeRounded": "Rounded"
+  },
+  "workspace": {
+    "addTab": "Добавить новую вкладку редактора"
   },
   "store": {
     "selectDirectory": "Выберите директорию, чтобы загрузить данные промптов в память.",
@@ -94,6 +125,7 @@
     "diffSelectHint": "Выделите связь между двумя нодами или одновременно выберите две ноды для анализа различий.",
     "diffIdentical": "Выбранные JSON-структуры идентичны. Изменений не найдено.",
     "diffBuilt": "Diff построен для пары {{source}} -> {{target}}.",
+    "diffMultiSelection": "Выделено {{count}} нод. Панель показывает сводку для множественного сравнения.",
     "diffInsufficientSelection": "Для анализа различий нужно выбрать одну связь или ровно две файловые ноды.",
     "diffSelectionUnsupported": "Выбранные элементы графа не содержат достаточно данных для сравнения."
     ,

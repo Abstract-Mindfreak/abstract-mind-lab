@@ -1,18 +1,47 @@
-import { create } from 'zustand'
+import type { IJsonModel } from 'flexlayout-react'
 import { createCompoundSchema, type Schema } from 'genson-js'
+import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { buildPromptDiff, type DiffSelection } from '../lib/diffing'
-import { isDirectoryPickerSupported, pickDirectory } from '../lib/fileSystemAccess'
 import {
-  buildPromptBlock,
-  type MetaSummary,
-  type PromptBlock,
-} from '../lib/promptIndex'
+  buildMultiPromptSelection,
+  buildPromptDiff,
+  type DiffSelection,
+} from '../lib/diffing'
+import { isDirectoryPickerSupported, pickDirectory } from '../lib/fileSystemAccess'
+import { buildPromptBlock, type MetaSummary, type PromptBlock } from '../lib/promptIndex'
 
 type UiMessage = {
   key: string
   values?: Record<string, string | number>
 }
+
+type WorkspaceActionHandlers = {
+  openBlankEditorTab: (draftId: string) => void
+  openPromptInNewTab: (promptId: string) => void
+  openPromptInPreview: (promptId: string) => void
+}
+
+type GraphNodeLayout = {
+  height?: number
+  width?: number
+  x: number
+  y: number
+}
+
+type SystemLogEntry = {
+  id: string
+  message: UiMessage
+  timestamp: string
+}
+
+type DraftDocument = {
+  content: string
+  id: string
+  name: string
+}
+
+type FontScale = 'x-small' | 'medium' | 'large'
+type UiTheme = 'dark' | 'light' | 'rounded'
 
 type GraphSelectionPayload = {
   edgePairs: Array<{ sourcePromptId?: string; targetPromptId?: string }>
@@ -21,28 +50,49 @@ type GraphSelectionPayload = {
 
 type AppState = {
   activeDirectory: string | null
+  appendSystemLog: (message: UiMessage) => void
+  analyzeFilteredBlocks: (blocks: PromptBlock[]) => void
+  connectDirectory: () => Promise<void>
+  diffSelection: DiffSelection | null
   directoryHandle: FileSystemDirectoryHandle | null
+  draftDocuments: Record<string, DraftDocument>
+  fontScale: FontScale
+  generatedSchema: Schema | null
+  graphNodeLayouts: Record<string, GraphNodeLayout>
+  groupByPath: string
   isDirectorySupported: boolean
   isLoadingBlocks: boolean
-  metaSummary: MetaSummary | null
-  promptBlocks: PromptBlock[]
-  selectedPromptId: string | null
-  focusedFileId: string | null
-  searchQuery: string
-  groupByPath: string
-  statusMessage: UiMessage
-  diffSelection: DiffSelection | null
-  generatedSchema: Schema | null
-  schemaSourceCount: number
-  connectDirectory: () => Promise<void>
+  layoutSnapshot: IJsonModel | null
   loadPromptBlocks: () => Promise<void>
-  setSelectedPromptId: (promptId: string | null) => void
-  setFocusedFile: (fileId: string | null) => void
-  setSearchQuery: (query: string) => void
+  metaSummary: MetaSummary | null
+  openBlankEditorTab: () => void
+  openPromptInNewTab: (promptId: string) => void
+  openPromptInPreview: (promptId: string | null) => void
+  promptBlocks: PromptBlock[]
+  registerWorkspaceActions: (actions: WorkspaceActionHandlers | null) => void
+  registeredWorkspaceActions: WorkspaceActionHandlers | null
+  removeDraftDocument: (draftId: string) => void
+  renameDraftDocument: (draftId: string, name: string) => void
+  schemaSourceCount: number
+  searchQuery: string
+  selectedPromptId: string | null
+  setFontScale: (scale: FontScale) => void
   setGroupByPath: (path: string) => void
+  setLayoutSnapshot: (snapshot: IJsonModel) => void
+  setSearchQuery: (query: string) => void
+  setSelectedPromptId: (promptId: string | null) => void
+  setShowEdgeLabels: (enabled: boolean) => void
+  setShowMiniMap: (enabled: boolean) => void
   setStatusMessage: (message: UiMessage) => void
-  analyzeFilteredBlocks: (blocks: PromptBlock[]) => void
+  setUiTheme: (theme: UiTheme) => void
+  showEdgeLabels: boolean
+  showMiniMap: boolean
+  statusMessage: UiMessage
+  systemLogs: SystemLogEntry[]
+  uiTheme: UiTheme
   updateDiffFromGraphSelection: (selection: GraphSelectionPayload) => void
+  upsertDraftDocument: (draft: DraftDocument) => void
+  upsertGraphNodeLayouts: (layouts: Record<string, Partial<GraphNodeLayout>>) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -50,78 +100,195 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       activeDirectory: null,
       directoryHandle: null,
+      draftDocuments: {},
+      fontScale: 'medium',
+      generatedSchema: null,
+      graphNodeLayouts: {},
+      groupByPath: '',
       isDirectorySupported: isDirectoryPickerSupported(),
       isLoadingBlocks: false,
+      layoutSnapshot: null,
       metaSummary: null,
       promptBlocks: [],
-      selectedPromptId: null,
-      focusedFileId: null,
-      searchQuery: '',
-      groupByPath: '',
-      statusMessage: { key: 'store.selectDirectory' },
-      diffSelection: null,
-      generatedSchema: null,
+      registeredWorkspaceActions: null,
       schemaSourceCount: 0,
+      searchQuery: '',
+      selectedPromptId: null,
+      showEdgeLabels: true,
+      showMiniMap: true,
+      statusMessage: { key: 'store.selectDirectory' },
+      systemLogs: [],
+      uiTheme: 'dark',
+      diffSelection: null,
+      appendSystemLog: (message) => {
+        set((state) => ({
+          systemLogs: [
+            {
+              id: `${Date.now()}-${state.systemLogs.length}`,
+              message,
+              timestamp: new Date().toISOString(),
+            },
+            ...state.systemLogs,
+          ].slice(0, 120),
+        }))
+      },
+      analyzeFilteredBlocks: (blocks) => {
+        if (blocks.length === 0) {
+          const message = { key: 'store.schemaUnavailable' }
+          set({
+            generatedSchema: null,
+            schemaSourceCount: 0,
+            statusMessage: message,
+          })
+          get().appendSystemLog(message)
+          return
+        }
+
+        const schema = createCompoundSchema(blocks.map((block) => block.data))
+        const message = {
+          key: 'store.schemaBuilt',
+          values: { count: blocks.length },
+        }
+
+        set({
+          generatedSchema: schema,
+          schemaSourceCount: blocks.length,
+          statusMessage: message,
+        })
+        get().appendSystemLog(message)
+      },
       connectDirectory: async () => {
         try {
           const { handle, name } = await pickDirectory()
+          const message = {
+            key: 'store.connectedReading',
+            values: { name },
+          }
 
           set({
             activeDirectory: name,
             directoryHandle: handle,
             isLoadingBlocks: true,
-            statusMessage: {
-              key: 'store.connectedReading',
-              values: { name },
-            },
+            statusMessage: message,
           })
+          get().appendSystemLog(message)
 
           await loadBlocksIntoStore(handle, set, get)
         } catch (error) {
+          const message = {
+            key: error instanceof Error ? error.message : 'store.connectFailed',
+          }
           set({
             isLoadingBlocks: false,
-            statusMessage: {
-              key: error instanceof Error ? error.message : 'store.connectFailed',
-            },
+            statusMessage: message,
           })
+          get().appendSystemLog(message)
         }
       },
       loadPromptBlocks: async () => {
         const handle = get().directoryHandle
 
         if (!handle) {
+          const message = { key: 'store.directoryHandleMissing' }
           set({
-            statusMessage: { key: 'store.directoryHandleMissing' },
+            statusMessage: message,
           })
+          get().appendSystemLog(message)
           return
+        }
+
+        const message = {
+          key: 'store.refreshingBlocks',
+          values: { name: handle.name },
         }
 
         set({
           isLoadingBlocks: true,
-          statusMessage: {
-            key: 'store.refreshingBlocks',
-            values: { name: handle.name },
-          },
+          statusMessage: message,
         })
+        get().appendSystemLog(message)
 
         await loadBlocksIntoStore(handle, set, get)
       },
-      setSelectedPromptId: (promptId) => {
+      openBlankEditorTab: () => {
+        const draftId = `draft:${Date.now()}`
+        const name = `Новый JSON ${Object.keys(get().draftDocuments).length + 1}`
+
+        set((state) => ({
+          draftDocuments: {
+            ...state.draftDocuments,
+            [draftId]: {
+              id: draftId,
+              name,
+              content: '{\n  \n}',
+            },
+          },
+        }))
+
+        get().registeredWorkspaceActions?.openBlankEditorTab(draftId)
+      },
+      openPromptInNewTab: (promptId) => {
+        const block = get().promptBlocks.find((item) => item.id === promptId)
+
+        if (!block) {
+          return
+        }
+
         set({
-          selectedPromptId: promptId,
           generatedSchema: null,
           schemaSourceCount: 0,
+          selectedPromptId: promptId,
+        })
+        get().registeredWorkspaceActions?.openPromptInNewTab(promptId)
+      },
+      openPromptInPreview: (promptId) => {
+        set({
+          generatedSchema: null,
+          schemaSourceCount: 0,
+          selectedPromptId: promptId,
+        })
+
+        if (promptId) {
+          get().registeredWorkspaceActions?.openPromptInPreview(promptId)
+        }
+      },
+      registerWorkspaceActions: (actions) => {
+        set({
+          registeredWorkspaceActions: actions,
         })
       },
-      setFocusedFile: (fileId) => {
-        set({
-          focusedFileId: fileId,
-          selectedPromptId: fileId,
+      removeDraftDocument: (draftId) => {
+        set((state) => {
+          const nextDrafts = { ...state.draftDocuments }
+          delete nextDrafts[draftId]
+
+          return {
+            draftDocuments: nextDrafts,
+          }
         })
       },
-      setSearchQuery: (query) => {
+      renameDraftDocument: (draftId, name) => {
+        set((state) => {
+          const draft = state.draftDocuments[draftId]
+
+          if (!draft) {
+            return state
+          }
+
+          return {
+            draftDocuments: {
+              ...state.draftDocuments,
+              [draftId]: {
+                ...draft,
+                name,
+              },
+            },
+          }
+        })
+      },
+      setFontScale: (scale) => {
         set({
-          searchQuery: query,
+          fontScale: scale,
         })
       },
       setGroupByPath: (path) => {
@@ -129,36 +296,47 @@ export const useAppStore = create<AppState>()(
           groupByPath: path,
         })
       },
+      setLayoutSnapshot: (snapshot) => {
+        set({
+          layoutSnapshot: snapshot,
+        })
+      },
+      setSearchQuery: (query) => {
+        set({
+          searchQuery: query,
+        })
+      },
+      setSelectedPromptId: (promptId) => {
+        set({
+          generatedSchema: null,
+          schemaSourceCount: 0,
+          selectedPromptId: promptId,
+        })
+      },
+      setShowEdgeLabels: (enabled) => {
+        set({
+          showEdgeLabels: enabled,
+        })
+      },
+      setShowMiniMap: (enabled) => {
+        set({
+          showMiniMap: enabled,
+        })
+      },
       setStatusMessage: (message) => {
         set({
           statusMessage: message,
         })
+        get().appendSystemLog(message)
       },
-      analyzeFilteredBlocks: (blocks) => {
-        if (blocks.length === 0) {
-          set({
-            generatedSchema: null,
-            schemaSourceCount: 0,
-            statusMessage: { key: 'store.schemaUnavailable' },
-          })
-          return
-        }
-
-        const schema = createCompoundSchema(blocks.map((block) => block.data))
-
+      setUiTheme: (theme) => {
         set({
-          generatedSchema: schema,
-          schemaSourceCount: blocks.length,
-          statusMessage: {
-            key: 'store.schemaBuilt',
-            values: { count: blocks.length },
-          },
+          uiTheme: theme,
         })
       },
       updateDiffFromGraphSelection: (selection) => {
         const promptBlocks = get().promptBlocks
         const blockMap = new Map(promptBlocks.map((block) => [block.id, block]))
-
         const edgePair = selection.edgePairs.find(
           (pair) => pair.sourcePromptId && pair.targetPromptId,
         )
@@ -176,6 +354,19 @@ export const useAppStore = create<AppState>()(
         const selectedBlocks = selection.nodeIds
           .map((id) => blockMap.get(id))
           .filter((block): block is PromptBlock => block !== undefined)
+
+        if (selectedBlocks.length > 2) {
+          const message = {
+            key: 'store.diffMultiSelection',
+            values: { count: selectedBlocks.length },
+          }
+
+          set({
+            diffSelection: buildMultiPromptSelection(selectedBlocks),
+            statusMessage: message,
+          })
+          return
+        }
 
         if (selectedBlocks.length === 2) {
           applyDiffSelection(set, selectedBlocks[0], selectedBlocks[1])
@@ -200,25 +391,65 @@ export const useAppStore = create<AppState>()(
           },
         })
       },
+      upsertDraftDocument: (draft) => {
+        set((state) => ({
+          draftDocuments: {
+            ...state.draftDocuments,
+            [draft.id]: draft,
+          },
+        }))
+      },
+      upsertGraphNodeLayouts: (layouts) => {
+        set((state) => {
+          const nextLayouts = { ...state.graphNodeLayouts }
+
+          for (const [nodeId, partial] of Object.entries(layouts)) {
+            const previous = nextLayouts[nodeId] ?? { x: 0, y: 0 }
+
+            nextLayouts[nodeId] = {
+              x: partial.x ?? previous.x,
+              y: partial.y ?? previous.y,
+              width: partial.width ?? previous.width,
+              height: partial.height ?? previous.height,
+            }
+          }
+
+          return {
+            graphNodeLayouts: nextLayouts,
+          }
+        })
+      },
     }),
     {
       name: 'abstract-mind-lab-ui',
-      version: 3,
+      version: 4,
       migrate: (persistedState) => {
         const state = persistedState as Partial<AppState> | undefined
 
         return {
-          selectedPromptId: state?.selectedPromptId ?? null,
-          focusedFileId: state?.focusedFileId ?? null,
-          searchQuery: state?.searchQuery ?? '',
+          draftDocuments: state?.draftDocuments ?? {},
+          fontScale: state?.fontScale ?? 'medium',
+          graphNodeLayouts: state?.graphNodeLayouts ?? {},
           groupByPath: state?.groupByPath ?? '',
+          layoutSnapshot: null,
+          searchQuery: state?.searchQuery ?? '',
+          selectedPromptId: state?.selectedPromptId ?? null,
+          showEdgeLabels: state?.showEdgeLabels ?? true,
+          showMiniMap: state?.showMiniMap ?? true,
+          uiTheme: state?.uiTheme ?? 'dark',
         }
       },
       partialize: (state) => ({
-        selectedPromptId: state.selectedPromptId,
-        focusedFileId: state.focusedFileId,
-        searchQuery: state.searchQuery,
+        draftDocuments: state.draftDocuments,
+        fontScale: state.fontScale,
+        graphNodeLayouts: state.graphNodeLayouts,
         groupByPath: state.groupByPath,
+        layoutSnapshot: state.layoutSnapshot,
+        searchQuery: state.searchQuery,
+        selectedPromptId: state.selectedPromptId,
+        showEdgeLabels: state.showEdgeLabels,
+        showMiniMap: state.showMiniMap,
+        uiTheme: state.uiTheme,
       }),
     },
   ),
@@ -249,13 +480,19 @@ async function loadBlocksIntoStore(
         values: { count: promptBlocks.length, name: handle.name },
       },
     })
+    get().appendSystemLog({
+      key: 'store.connectedLoaded',
+      values: { count: promptBlocks.length, name: handle.name },
+    })
   } catch (error) {
+    const message = {
+      key: error instanceof Error ? error.message : 'store.readFailed',
+    }
     set({
       isLoadingBlocks: false,
-      statusMessage: {
-        key: error instanceof Error ? error.message : 'store.readFailed',
-      },
+      statusMessage: message,
     })
+    get().appendSystemLog(message)
   }
 }
 

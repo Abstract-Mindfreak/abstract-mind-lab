@@ -21,8 +21,9 @@ export function PromptListPanel({ node }: PanelProps) {
   const isLoadingBlocks = useAppStore((state) => state.isLoadingBlocks)
   const searchQuery = useAppStore((state) => state.searchQuery)
   const groupByPath = useAppStore((state) => state.groupByPath)
+  const openPromptInNewTab = useAppStore((state) => state.openPromptInNewTab)
+  const openPromptInPreview = useAppStore((state) => state.openPromptInPreview)
   const selectedPromptId = useAppStore((state) => state.selectedPromptId)
-  const setFocusedFile = useAppStore((state) => state.setFocusedFile)
   const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const setGroupByPath = useAppStore((state) => state.setGroupByPath)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
@@ -184,11 +185,20 @@ export function PromptListPanel({ node }: PanelProps) {
                             : 'border-slate-800 bg-slate-900/60 hover:border-slate-600'
                         }`}
                         key={block.id}
+                        onMouseDown={(event) => {
+                          if (event.button === 1) {
+                            event.preventDefault()
+                            openPromptInNewTab(block.id)
+                          }
+                        }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <button
                             className="min-w-0 flex-1 text-left"
-                            onClick={() => setSelectedPromptId(block.id)}
+                            onClick={() => {
+                              setSelectedPromptId(block.id)
+                              openPromptInPreview(block.id)
+                            }}
                             type="button"
                           >
                             <div className="truncate text-sm font-medium text-slate-100">{block.displayName}</div>
@@ -209,10 +219,17 @@ export function PromptListPanel({ node }: PanelProps) {
                           </button>
                           <button
                             className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15"
-                            onClick={() => setFocusedFile(block.id)}
+                            onClick={() => openPromptInPreview(block.id)}
                             type="button"
                           >
                             <Trans t={t} i18nKey="promptList.openFileGraph" />
+                          </button>
+                          <button
+                            className="rounded-lg border border-violet-400/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100 transition hover:border-violet-300 hover:bg-violet-400/15"
+                            onClick={() => openPromptInNewTab(block.id)}
+                            type="button"
+                          >
+                            <Trans t={t} i18nKey="promptList.openInNewTab" />
                           </button>
                         </div>
                         {groupByPath ? (

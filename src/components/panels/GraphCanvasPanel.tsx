@@ -1,13 +1,15 @@
 import {
+  applyNodeChanges,
   Background,
   Controls,
   MiniMap,
-  Panel,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
   useOnSelectionChange,
+  SelectionMode,
+  type NodeChange,
   type Edge,
   type Node,
   type NodeTypes,
@@ -15,7 +17,6 @@ import {
 import { useCallback, useEffect, useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { GroupSummaryNode } from '../graph/GroupSummaryNode'
-import { JsonFragmentNode } from '../graph/JsonFragmentNode'
 import { PromptFlowNode } from '../graph/PromptFlowNode'
 import { buildPromptGraph } from '../../lib/buildPromptGraph'
 import { useAppStore } from '../../store/useAppStore'
@@ -23,7 +24,6 @@ import type { PanelProps } from './types'
 
 const nodeTypes: NodeTypes = {
   groupSummary: GroupSummaryNode,
-  jsonFragment: JsonFragmentNode,
   promptBlock: PromptFlowNode,
 }
 
@@ -54,29 +54,33 @@ export function GraphCanvasPanel({ node }: PanelProps) {
 }
 
 function PromptGraph() {
-  const { t } = useTranslation()
   const promptBlocks = useAppStore((state) => state.promptBlocks)
+  const graphNodeLayouts = useAppStore((state) => state.graphNodeLayouts)
   const selectedPromptId = useAppStore((state) => state.selectedPromptId)
-  const focusedFileId = useAppStore((state) => state.focusedFileId)
   const searchQuery = useAppStore((state) => state.searchQuery)
   const groupByPath = useAppStore((state) => state.groupByPath)
+  const openPromptInNewTab = useAppStore((state) => state.openPromptInNewTab)
+  const openPromptInPreview = useAppStore((state) => state.openPromptInPreview)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
-  const setFocusedFile = useAppStore((state) => state.setFocusedFile)
+  const showEdgeLabels = useAppStore((state) => state.showEdgeLabels)
+  const showMiniMap = useAppStore((state) => state.showMiniMap)
+  const upsertGraphNodeLayouts = useAppStore((state) => state.upsertGraphNodeLayouts)
   const updateDiffFromGraphSelection = useAppStore((state) => state.updateDiffFromGraphSelection)
 
   const graph = useMemo(
     () =>
       buildPromptGraph({
         blocks: promptBlocks,
+        graphNodeLayouts,
         selectedPromptId,
-        focusedFileId,
         searchQuery,
         groupByPath,
+        showEdgeLabels,
       }),
-    [focusedFileId, groupByPath, promptBlocks, searchQuery, selectedPromptId],
+    [graphNodeLayouts, groupByPath, promptBlocks, searchQuery, selectedPromptId, showEdgeLabels],
   )
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes)
+  const [nodes, setNodes] = useNodesState(graph.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges)
 
   useEffect(() => {
@@ -109,6 +113,40 @@ function PromptGraph() {
     onChange: onSelectionChange,
   })
 
+  const onNodesChange = useCallback(
+    (changes: NodeChange<Node>[]) => {
+      setNodes((currentNodes) => applyNodeChanges(changes, currentNodes))
+
+      const layoutUpdates = changes.reduce<Record<string, Partial<{ width?: number; height?: number; x: number; y: number }>>>(
+        (accumulator, change) => {
+          if (change.type === 'position' && change.position) {
+            accumulator[change.id] = {
+              ...accumulator[change.id],
+              x: change.position.x,
+              y: change.position.y,
+            }
+          }
+
+          if (change.type === 'dimensions' && change.dimensions) {
+            accumulator[change.id] = {
+              ...accumulator[change.id],
+              width: change.dimensions.width,
+              height: change.dimensions.height,
+            }
+          }
+
+          return accumulator
+        },
+        {},
+      )
+
+      if (Object.keys(layoutUpdates).length > 0) {
+        upsertGraphNodeLayouts(layoutUpdates)
+      }
+    },
+    [setNodes, upsertGraphNodeLayouts],
+  )
+
   return (
     <ReactFlow
       edges={edges}
@@ -118,37 +156,48 @@ function PromptGraph() {
       multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
       nodeTypes={nodeTypes}
       nodes={nodes}
+      onNodeDoubleClick={(_, clickedNode) => {
+        const blockId = clickedNode.data?.blockId
+
+        if (typeof blockId === 'string') {
+          openPromptInNewTab(blockId)
+        }
+      }}
       onEdgesChange={onEdgesChange}
       onNodeClick={(_, clickedNode) => {
         if (clickedNode.id.startsWith('block:')) {
-          setSelectedPromptId(clickedNode.id.replace('block:', ''))
+          const blockId = clickedNode.id.replace('block:', '')
+          setSelectedPromptId(blockId)
+          openPromptInPreview(blockId)
+        }
+      }}
+      onNodeContextMenu={(event, clickedNode) => {
+        const blockId = clickedNode.data?.blockId
+
+        if (typeof blockId === 'string') {
+          event.preventDefault()
+          openPromptInNewTab(blockId)
         }
       }}
       onNodesChange={onNodesChange}
       onlyRenderVisibleElements
+      panOnDrag={[1, 2]}
       proOptions={{ hideAttribution: true }}
+      selectionMode={SelectionMode.Partial}
+      selectionOnDrag
     >
-      {focusedFileId ? (
-        <Panel position="top-left">
-          <button
-            className="rounded-xl border border-cyan-400/35 bg-slate-950/90 px-4 py-2 text-sm font-medium text-cyan-200 shadow-lg transition hover:border-cyan-300 hover:bg-slate-900"
-            onClick={() => setFocusedFile(null)}
-            type="button"
-          >
-            <Trans t={t} i18nKey="graph.returnToDataset" />
-          </button>
-        </Panel>
-      ) : null}
       <Background color="#1e293b" gap={24} size={1} />
-      <MiniMap
-        bgColor="#020617"
-        maskColor="rgba(15, 23, 42, 0.65)"
-        nodeColor={(currentNode) =>
-          currentNode.type === 'groupSummary' ? 'rgba(52, 211, 153, 0.7)' : 'rgba(56, 189, 248, 0.7)'
-        }
-        pannable
-        zoomable
-      />
+      {showMiniMap ? (
+        <MiniMap
+          bgColor="#020617"
+          maskColor="rgba(15, 23, 42, 0.65)"
+          nodeColor={(currentNode) =>
+            currentNode.type === 'groupSummary' ? 'rgba(52, 211, 153, 0.7)' : 'rgba(56, 189, 248, 0.7)'
+          }
+          pannable
+          zoomable
+        />
+      ) : null}
       <Controls position="bottom-right" showInteractive={false} />
     </ReactFlow>
   )
