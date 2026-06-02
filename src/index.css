@@ -1,0 +1,69 @@
+@import "flexlayout-react/style/light.css";
+@import "@xyflow/react/dist/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at top, rgba(34, 197, 94, 0.14), transparent 28%),
+    radial-gradient(circle at right, rgba(14, 165, 233, 0.12), transparent 32%),
+    #020617;
+  font-family:
+    Inter, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+}
+
+.flexlayout__layout {
+  --color-text: #e2e8f0;
+  --color-background: transparent;
+  --color-base: rgba(15, 23, 42, 0.92);
+  --color-1: rgba(15, 23, 42, 0.96);
+  --color-2: rgba(30, 41, 59, 0.96);
+  --color-3: rgba(51, 65, 85, 0.96);
+  --color-4: rgba(71, 85, 105, 0.96);
+  --color-5: rgba(94, 234, 212, 0.75);
+  --color-6: rgba(14, 165, 233, 0.72);
+  --color-drag1: rgba(8, 145, 178, 0.2);
+  --color-drag2: rgba(34, 197, 94, 0.36);
+  --font-size: 14px;
+  --font-family:
+    Inter, "Segoe UI", sans-serif;
+}
+
+.flexlayout__tabset,
+.flexlayout__tab {
+  background-color: rgba(15, 23, 42, 0.92);
+}
+
+.panel-shell {
+  height: 100%;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.panel-card {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 1rem;
+  backdrop-filter: blur(12px);
+}
