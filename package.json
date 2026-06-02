@@ -19,9 +19,14 @@
     "@xyflow/react": "^12.11.0",
     "autoprefixer": "^10.5.0",
     "flexlayout-react": "^0.9.1",
+    "genson-js": "^0.0.8",
+    "i18next": "^26.3.0",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "jsondiffpatch": "^0.7.6",
     "postcss": "^8.5.15",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-i18next": "^17.0.8",
     "tailwindcss": "^3.4.19",
     "zustand": "^5.0.14"
   }

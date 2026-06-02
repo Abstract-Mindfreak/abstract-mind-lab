@@ -1,6 +1,9 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { Trans, useTranslation } from 'react-i18next'
+import { useAppStore } from '../../store/useAppStore'
 
 type PromptFlowNodeData = {
+  blockId: string
   fileName: string
   relativePath: string
   keyPreview: string[]
@@ -10,6 +13,9 @@ type PromptFlowNodeData = {
 export type PromptFlowNodeType = Node<PromptFlowNodeData, 'promptBlock'>
 
 export function PromptFlowNode({ data }: NodeProps<PromptFlowNodeType>) {
+  const { t } = useTranslation()
+  const setFocusedFile = useAppStore((state) => state.setFocusedFile)
+
   return (
     <div
       className={`min-w-[240px] max-w-[280px] rounded-2xl border px-4 py-3 shadow-lg transition ${
@@ -22,7 +28,9 @@ export function PromptFlowNode({ data }: NodeProps<PromptFlowNodeType>) {
       <div className="space-y-2">
         <div className="truncate text-sm font-semibold text-slate-50">{data.fileName}</div>
         <div className="truncate text-xs text-slate-400">{data.relativePath}</div>
-        <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Top level keys</div>
+        <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+          <Trans t={t} i18nKey="graph.topLevelKeys" />
+        </div>
         <div className="flex flex-wrap gap-1">
           {data.keyPreview.slice(0, 6).map((key: string) => (
             <span
@@ -33,9 +41,21 @@ export function PromptFlowNode({ data }: NodeProps<PromptFlowNodeType>) {
             </span>
           ))}
           {data.keyPreview.length === 0 ? (
-            <span className="text-[11px] text-slate-500">No enumerable keys</span>
+            <span className="text-[11px] text-slate-500">
+              <Trans t={t} i18nKey="graph.noEnumerableKeys" />
+            </span>
           ) : null}
         </div>
+        <button
+          className="nodrag nopan mt-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15"
+          onClick={(event) => {
+            event.stopPropagation()
+            setFocusedFile(data.blockId)
+          }}
+          type="button"
+        >
+          <Trans t={t} i18nKey="graph.openFileGraph" />
+        </button>
       </div>
       <Handle position={Position.Right} type="source" />
     </div>

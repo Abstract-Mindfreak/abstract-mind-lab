@@ -1,9 +1,11 @@
 import type { Edge, Node } from '@xyflow/react'
+import { buildFocusedFileGraph } from './buildFocusedFileGraph'
 import { getValueByPath, groupPromptBlocks, searchPromptBlocks, type PromptBlock } from './promptIndex'
 
 type BuildPromptGraphArgs = {
   blocks: PromptBlock[]
   selectedPromptId: string | null
+  focusedFileId: string | null
   searchQuery: string
   groupByPath: string
 }
@@ -11,9 +13,18 @@ type BuildPromptGraphArgs = {
 export function buildPromptGraph({
   blocks,
   selectedPromptId,
+  focusedFileId,
   searchQuery,
   groupByPath,
 }: BuildPromptGraphArgs): { nodes: Node[]; edges: Edge[] } {
+  if (focusedFileId) {
+    const focusedBlock = blocks.find((block) => block.id === focusedFileId)
+
+    if (focusedBlock) {
+      return buildFocusedFileGraph({ block: focusedBlock })
+    }
+  }
+
   const filteredBlocks = searchPromptBlocks(blocks, searchQuery)
 
   if (filteredBlocks.length === 0) {
@@ -78,6 +89,7 @@ function buildGroupedGraph(
           y: groupIndex * 220,
         },
         data: {
+          blockId: block.id,
           fileName: block.fileName,
           relativePath: block.relativePath,
           keyPreview: block.topLevelKeys,
@@ -92,6 +104,10 @@ function buildGroupedGraph(
         type: 'smoothstep',
         animated: block.id === selectedPromptId,
         label: formatEdgeLabel(getValueByPath(block.data, groupByPath)),
+        data: {
+          sourcePromptId: undefined,
+          targetPromptId: block.id,
+        },
       })
     })
   })
@@ -111,6 +127,7 @@ function buildUngroupedGraph(
       y: Math.floor(index / 4) * 220,
     },
     data: {
+      blockId: block.id,
       fileName: block.fileName,
       relativePath: block.relativePath,
       keyPreview: block.topLevelKeys,
@@ -124,6 +141,10 @@ function buildUngroupedGraph(
     target: `block:${block.id}`,
     type: 'smoothstep',
     animated: blocks[index].id === selectedPromptId || block.id === selectedPromptId,
+    data: {
+      sourcePromptId: blocks[index].id,
+      targetPromptId: block.id,
+    },
   }))
 
   return { nodes, edges }

@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   collectGroupablePaths,
   getValueByPath,
@@ -9,6 +11,7 @@ import { useAppStore } from '../../store/useAppStore'
 import type { PanelProps } from './types'
 
 export function PromptListPanel({ node }: PanelProps) {
+  const { t } = useTranslation()
   const blocks = useAppStore((state) => state.promptBlocks)
   const connectDirectory = useAppStore((state) => state.connectDirectory)
   const loadPromptBlocks = useAppStore((state) => state.loadPromptBlocks)
@@ -18,9 +21,11 @@ export function PromptListPanel({ node }: PanelProps) {
   const searchQuery = useAppStore((state) => state.searchQuery)
   const groupByPath = useAppStore((state) => state.groupByPath)
   const selectedPromptId = useAppStore((state) => state.selectedPromptId)
+  const setFocusedFile = useAppStore((state) => state.setFocusedFile)
   const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const setGroupByPath = useAppStore((state) => state.setGroupByPath)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
+  const analyzeFilteredBlocks = useAppStore((state) => state.analyzeFilteredBlocks)
 
   const filteredBlocks = useMemo(() => searchPromptBlocks(blocks, searchQuery), [blocks, searchQuery])
   const groupedBlocks = useMemo(
@@ -56,10 +61,11 @@ export function PromptListPanel({ node }: PanelProps) {
       <div className="panel-card space-y-4">
         <header className="space-y-1">
           <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/80">{node.getName()}</p>
-          <h2 className="text-xl font-semibold text-slate-50">Prompt workspace</h2>
+          <h2 className="text-xl font-semibold text-slate-50">
+            <Trans t={t} i18nKey="promptList.title" />
+          </h2>
           <p className="text-sm text-slate-300">
-            Panel reads local JSON files into memory, supports fast search by content, and can
-            group the dataset by dynamic key paths.
+            <Trans t={t} i18nKey="promptList.description" />
           </p>
         </header>
 
@@ -70,7 +76,10 @@ export function PromptListPanel({ node }: PanelProps) {
             onClick={() => void connectDirectory()}
             type="button"
           >
-            {activeDirectory ? 'Reconnect Directory' : 'Connect Directory'}
+            <Trans
+              t={t}
+              i18nKey={activeDirectory ? 'promptList.reconnectDirectory' : 'promptList.connectDirectory'}
+            />
           </button>
           <button
             className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
@@ -78,28 +87,43 @@ export function PromptListPanel({ node }: PanelProps) {
             onClick={() => void loadPromptBlocks()}
             type="button"
           >
-            Refresh Blocks
+            <Trans t={t} i18nKey="promptList.refreshBlocks" />
           </button>
           <span className="text-xs text-slate-400">
-            {isDirectorySupported
-              ? activeDirectory ?? 'Directory handle not selected'
-              : 'File System Access API is not available in this browser'}
+            {isDirectorySupported ? (
+              activeDirectory ? (
+                <Trans t={t} i18nKey="promptList.directoryName" values={{ name: activeDirectory }} />
+              ) : (
+                <Trans t={t} i18nKey="promptList.directoryNotSelected" />
+              )
+            ) : (
+              <Trans t={t} i18nKey="promptList.directoryApiUnavailable" />
+            )}
           </span>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <StatCard label="Loaded blocks" value={String(blocks.length)} />
-              <StatCard label="Filtered blocks" value={String(filteredBlocks.length)} />
-              <StatCard label="Groups" value={String(groupedBlocks.size)} />
+              <StatCard labelKey="promptList.loadedBlocks" value={String(blocks.length)} />
+              <StatCard labelKey="promptList.filteredBlocks" value={String(filteredBlocks.length)}>
+                <button
+                  className="mt-3 w-full rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={filteredBlocks.length === 0}
+                  onClick={() => analyzeFilteredBlocks(filteredBlocks)}
+                  type="button"
+                >
+                  <Trans t={t} i18nKey="promptList.analyzeGroupStructure" />
+                </button>
+              </StatCard>
+              <StatCard labelKey="promptList.groups" value={String(groupedBlocks.size)} />
             </div>
 
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem]">
               <input
                 className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search file names, keys, or JSON text"
+                placeholder={t('promptList.searchPlaceholder')}
                 type="search"
                 value={searchQuery}
               />
@@ -107,7 +131,7 @@ export function PromptListPanel({ node }: PanelProps) {
                 className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
                 list="groupable-paths"
                 onChange={(event) => setGroupByPath(event.target.value)}
-                placeholder="Group by key path"
+                placeholder={t('promptList.groupByPlaceholder')}
                 type="text"
                 value={groupByPath}
               />
@@ -128,7 +152,11 @@ export function PromptListPanel({ node }: PanelProps) {
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-100">{group}</div>
                       <div className="text-xs text-slate-500">
-                        {groupByPath ? `Value at ${groupByPath}` : 'Ungrouped result set'}
+                        {groupByPath ? (
+                          <Trans t={t} i18nKey="promptList.groupValueAt" values={{ path: groupByPath }} />
+                        ) : (
+                          <Trans t={t} i18nKey="promptList.ungroupedResultSet" />
+                        )}
                       </div>
                     </div>
                     <div className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
@@ -138,27 +166,51 @@ export function PromptListPanel({ node }: PanelProps) {
 
                   <div className="space-y-2">
                     {groupBlocks.slice(0, 8).map((block) => (
-                      <button
-                        className={`block w-full rounded-xl border px-3 py-2 text-left transition ${
+                      <div
+                        className={`rounded-xl border px-3 py-2 transition ${
                           selectedPromptId === block.id
                             ? 'border-cyan-400 bg-cyan-400/10'
                             : 'border-slate-800 bg-slate-900/60 hover:border-slate-600'
                         }`}
                         key={block.id}
-                        onClick={() => setSelectedPromptId(block.id)}
-                        type="button"
                       >
-                        <div className="truncate text-sm font-medium text-slate-100">{block.fileName}</div>
-                        <div className="truncate text-xs text-slate-500">{block.relativePath}</div>
-                        <div className="mt-1 truncate text-xs text-slate-400">
-                          keys: {block.topLevelKeys.join(', ') || 'none'}
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => setSelectedPromptId(block.id)}
+                            type="button"
+                          >
+                            <div className="truncate text-sm font-medium text-slate-100">{block.fileName}</div>
+                            <div className="truncate text-xs text-slate-500">{block.relativePath}</div>
+                            <div className="mt-1 truncate text-xs text-slate-400">
+                              <Trans
+                                t={t}
+                                i18nKey="promptList.keys"
+                                values={{ keys: block.topLevelKeys.join(', ') || t('promptList.noKeys') }}
+                              />
+                            </div>
+                          </button>
+                          <button
+                            className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15"
+                            onClick={() => setFocusedFile(block.id)}
+                            type="button"
+                          >
+                            <Trans t={t} i18nKey="promptList.openFileGraph" />
+                          </button>
                         </div>
                         {groupByPath ? (
                           <div className="mt-1 truncate text-xs text-cyan-300/80">
-                            {groupByPath}: {formatValue(getValueByPath(block.data, groupByPath))}
+                            <Trans
+                              t={t}
+                              i18nKey="promptList.pathValue"
+                              values={{
+                                path: groupByPath,
+                                value: formatValue(getValueByPath(block.data, groupByPath)),
+                              }}
+                            />
                           </div>
                         ) : null}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -168,9 +220,11 @@ export function PromptListPanel({ node }: PanelProps) {
 
           <aside className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Groupable paths</div>
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                <Trans t={t} i18nKey="promptList.groupablePaths" />
+              </div>
               <div className="mt-1 text-sm text-slate-300">
-                Auto-collected from loaded JSON objects.
+                <Trans t={t} i18nKey="promptList.groupablePathsDescription" />
               </div>
             </div>
             <div className="max-h-[40rem] space-y-2 overflow-auto">
@@ -196,11 +250,24 @@ export function PromptListPanel({ node }: PanelProps) {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  labelKey,
+  value,
+  children,
+}: {
+  labelKey: string
+  value: string
+  children?: ReactNode
+}) {
+  const { t } = useTranslation()
+
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{label}</div>
+      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+        <Trans t={t} i18nKey={labelKey} />
+      </div>
       <div className="text-3xl font-semibold text-emerald-300">{value}</div>
+      {children}
     </div>
   )
 }
