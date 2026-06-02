@@ -16,8 +16,11 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@types/dagre": "^0.7.54",
     "@xyflow/react": "^12.11.0",
     "autoprefixer": "^10.5.0",
+    "dagre": "^0.8.5",
     "flexlayout-react": "^0.9.1",
     "genson-js": "^0.0.8",
     "i18next": "^26.3.0",
