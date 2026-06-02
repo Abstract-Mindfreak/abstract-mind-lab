@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   collectGroupablePaths,
-  filterPromptBlocks,
   getValueByPath,
   groupPromptBlocks,
+  searchPromptBlocks,
 } from '../../lib/promptIndex'
 import { useAppStore } from '../../store/useAppStore'
 import type { PanelProps } from './types'
@@ -22,12 +22,34 @@ export function PromptListPanel({ node }: PanelProps) {
   const setGroupByPath = useAppStore((state) => state.setGroupByPath)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
 
-  const filteredBlocks = useMemo(() => filterPromptBlocks(blocks, searchQuery), [blocks, searchQuery])
+  const filteredBlocks = useMemo(() => searchPromptBlocks(blocks, searchQuery), [blocks, searchQuery])
   const groupedBlocks = useMemo(
     () => groupPromptBlocks(filteredBlocks, groupByPath),
     [filteredBlocks, groupByPath],
   )
   const groupablePaths = useMemo(() => collectGroupablePaths(blocks), [blocks])
+  const visibleGroupablePaths = useMemo(
+    () =>
+      groupByPath.trim()
+        ? groupablePaths
+            .filter((path) => path.toLowerCase().includes(groupByPath.trim().toLowerCase()))
+            .slice(0, 200)
+        : groupablePaths.slice(0, 200),
+    [groupByPath, groupablePaths],
+  )
+
+  useEffect(() => {
+    if (filteredBlocks.length === 0) {
+      if (selectedPromptId !== null) {
+        setSelectedPromptId(null)
+      }
+      return
+    }
+
+    if (!selectedPromptId || !filteredBlocks.some((block) => block.id === selectedPromptId)) {
+      setSelectedPromptId(filteredBlocks[0].id)
+    }
+  }, [filteredBlocks, selectedPromptId, setSelectedPromptId])
 
   return (
     <section className="panel-shell">
@@ -90,7 +112,7 @@ export function PromptListPanel({ node }: PanelProps) {
                 value={groupByPath}
               />
               <datalist id="groupable-paths">
-                {groupablePaths.map((path) => (
+                {visibleGroupablePaths.map((path) => (
                   <option key={path} value={path} />
                 ))}
               </datalist>
@@ -152,7 +174,7 @@ export function PromptListPanel({ node }: PanelProps) {
               </div>
             </div>
             <div className="max-h-[40rem] space-y-2 overflow-auto">
-              {groupablePaths.slice(0, 80).map((path) => (
+              {visibleGroupablePaths.slice(0, 80).map((path) => (
                 <button
                   className={`block w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                     path === groupByPath
@@ -163,7 +185,7 @@ export function PromptListPanel({ node }: PanelProps) {
                   onClick={() => setGroupByPath(path === groupByPath ? '' : path)}
                   type="button"
                 >
-                  {path}
+                  <span className="block truncate">{path}</span>
                 </button>
               ))}
             </div>

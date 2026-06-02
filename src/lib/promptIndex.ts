@@ -5,6 +5,9 @@ export type PromptBlock = {
   fileName: string
   relativePath: string
   searchText: string
+  fileNameText: string
+  relativePathText: string
+  topLevelKeyText: string
   topLevelKeys: string[]
   data: PromptBlockData
 }
@@ -47,6 +50,9 @@ export function buildPromptBlock(entry: JsonFileEntry): PromptBlock | null {
       id: entry.relativePath,
       fileName: entry.fileName,
       relativePath: entry.relativePath,
+      fileNameText: entry.fileName.toLowerCase(),
+      relativePathText: entry.relativePath.toLowerCase(),
+      topLevelKeyText: topLevelKeys.join(' ').toLowerCase(),
       searchText: [entry.fileName, entry.relativePath, topLevelKeys.join(' '), entry.rawText]
         .join('\n')
         .toLowerCase(),
@@ -59,6 +65,10 @@ export function buildPromptBlock(entry: JsonFileEntry): PromptBlock | null {
 }
 
 export function filterPromptBlocks(blocks: PromptBlock[], query: string) {
+  return searchPromptBlocks(blocks, query)
+}
+
+export function searchPromptBlocks(blocks: PromptBlock[], query: string) {
   const normalizedQuery = query.trim().toLowerCase()
 
   if (!normalizedQuery) {
@@ -66,7 +76,15 @@ export function filterPromptBlocks(blocks: PromptBlock[], query: string) {
   }
 
   const tokens = normalizedQuery.split(/\s+/).filter(Boolean)
-  return blocks.filter((block) => tokens.every((token) => block.searchText.includes(token)))
+
+  return blocks
+    .map((block) => ({
+      block,
+      score: scorePromptBlock(block, tokens),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.block.fileName.localeCompare(b.block.fileName))
+    .map((entry) => entry.block)
 }
 
 export function groupPromptBlocks(blocks: PromptBlock[], keyPath: string) {
@@ -94,28 +112,70 @@ export function groupPromptBlocks(blocks: PromptBlock[], keyPath: string) {
 }
 
 export function collectGroupablePaths(blocks: PromptBlock[]) {
-  const paths = new Set<string>()
+  const pathUsage = new Map<string, number>()
 
   for (const block of blocks) {
-    collectPaths(block.data, '', paths)
+    collectPaths(block.data, '', pathUsage)
   }
 
-  return [...paths].sort((a, b) => a.localeCompare(b))
+  return [...pathUsage.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([path]) => path)
 }
 
-function collectPaths(value: unknown, prefix: string, paths: Set<string>) {
+function collectPaths(value: unknown, prefix: string, pathUsage: Map<string, number>) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return
   }
 
   for (const [key, nestedValue] of Object.entries(value)) {
     const nextPath = prefix ? `${prefix}.${key}` : key
-    paths.add(nextPath)
+    pathUsage.set(nextPath, (pathUsage.get(nextPath) ?? 0) + 1)
 
     if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue)) {
-      collectPaths(nestedValue, nextPath, paths)
+      collectPaths(nestedValue, nextPath, pathUsage)
     }
   }
+}
+
+function scorePromptBlock(block: PromptBlock, tokens: string[]) {
+  let score = 0
+
+  for (const token of tokens) {
+    let tokenScore = 0
+
+    if (block.fileNameText === token) {
+      tokenScore += 120
+    } else if (block.fileNameText.startsWith(token)) {
+      tokenScore += 80
+    } else if (block.fileNameText.includes(token)) {
+      tokenScore += 50
+    }
+
+    if (block.relativePathText === token) {
+      tokenScore += 100
+    } else if (block.relativePathText.includes(token)) {
+      tokenScore += 40
+    }
+
+    if (block.topLevelKeyText.includes(token)) {
+      tokenScore += 24
+    }
+
+    if (block.searchText.includes(`"${token}"`)) {
+      tokenScore += 16
+    } else if (block.searchText.includes(token)) {
+      tokenScore += 8
+    }
+
+    if (tokenScore === 0) {
+      return 0
+    }
+
+    score += tokenScore
+  }
+
+  return score
 }
 
 function formatGroupLabel(value: unknown) {

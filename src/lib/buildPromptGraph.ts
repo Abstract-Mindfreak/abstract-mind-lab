@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
-import { filterPromptBlocks, getValueByPath, groupPromptBlocks, type PromptBlock } from './promptIndex'
+import { getValueByPath, groupPromptBlocks, searchPromptBlocks, type PromptBlock } from './promptIndex'
 
 type BuildPromptGraphArgs = {
   blocks: PromptBlock[]
@@ -14,10 +14,9 @@ export function buildPromptGraph({
   searchQuery,
   groupByPath,
 }: BuildPromptGraphArgs): { nodes: Node[]; edges: Edge[] } {
-  const filteredBlocks = filterPromptBlocks(blocks, searchQuery)
-  const limitedBlocks = filteredBlocks.slice(0, 36)
+  const filteredBlocks = searchPromptBlocks(blocks, searchQuery)
 
-  if (limitedBlocks.length === 0) {
+  if (filteredBlocks.length === 0) {
     return {
       nodes: [
         {
@@ -38,10 +37,10 @@ export function buildPromptGraph({
   }
 
   if (groupByPath.trim()) {
-    return buildGroupedGraph(limitedBlocks, selectedPromptId, groupByPath)
+    return buildGroupedGraph(filteredBlocks, selectedPromptId, groupByPath)
   }
 
-  return buildUngroupedGraph(limitedBlocks, selectedPromptId)
+  return buildUngroupedGraph(filteredBlocks.slice(0, 36), selectedPromptId)
 }
 
 function buildGroupedGraph(
