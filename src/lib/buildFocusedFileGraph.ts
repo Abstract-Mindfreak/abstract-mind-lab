@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { PromptBlock } from './promptIndex'
+import { getLayoutedElements } from '../utils/graphLayout'
 
 type BuildFocusedFileGraphArgs = {
   block: PromptBlock
@@ -40,12 +41,10 @@ export function buildFocusedFileGraph({ block }: BuildFocusedFileGraphArgs): Gra
     nodes.push({
       id: nodeId,
       type: 'jsonFragment',
-      position: {
-        x: depth * 340,
-        y: siblingIndex * 160,
-      },
+      position: { x: 0, y: 0 },
       draggable: false,
       data: {
+        depth,
         kind,
         label,
         path,
@@ -82,7 +81,13 @@ export function buildFocusedFileGraph({ block }: BuildFocusedFileGraphArgs): Gra
 
   visit(block.data, block.fileName, '$', 0, 0)
 
-  return { nodes, edges }
+  return getLayoutedElements(nodes, edges, {
+    columnsPerDepth: 5,
+    nodeHeight: 148,
+    nodeWidth: 260,
+    rankdir: 'TB',
+    ranksep: 132,
+  })
 }
 
 function previewValue(value: unknown) {

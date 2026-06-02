@@ -4,7 +4,9 @@ import { useAppStore } from '../../store/useAppStore'
 
 type PromptFlowNodeData = {
   blockId: string
+  displayName: string
   fileName: string
+  mmssType: string | null
   relativePath: string
   keyPreview: string[]
   selected: boolean
@@ -26,8 +28,14 @@ export function PromptFlowNode({ data }: NodeProps<PromptFlowNodeType>) {
     >
       <Handle position={Position.Left} type="target" />
       <div className="space-y-2">
-        <div className="truncate text-sm font-semibold text-slate-50">{data.fileName}</div>
-        <div className="truncate text-xs text-slate-400">{data.relativePath}</div>
+        <div className="truncate text-sm font-semibold text-slate-50">{data.displayName}</div>
+        <div className="truncate text-xs text-slate-400">{data.fileName}</div>
+        <div className="truncate text-[11px] text-slate-500">{data.relativePath}</div>
+        {data.mmssType ? (
+          <div className="inline-flex max-w-full rounded-full border border-violet-400/25 bg-violet-400/10 px-2 py-1 text-[11px] text-violet-100/85">
+            <span className="truncate">{data.mmssType}</span>
+          </div>
+        ) : null}
         <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
           <Trans t={t} i18nKey="graph.topLevelKeys" />
         </div>

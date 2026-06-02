@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import {
   collectGroupablePaths,
   getValueByPath,
+  getGroupablePathsFromMetaSummary,
   groupPromptBlocks,
   searchPromptBlocks,
 } from '../../lib/promptIndex'
@@ -26,21 +27,31 @@ export function PromptListPanel({ node }: PanelProps) {
   const setGroupByPath = useAppStore((state) => state.setGroupByPath)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
   const analyzeFilteredBlocks = useAppStore((state) => state.analyzeFilteredBlocks)
+  const metaSummary = useAppStore((state) => state.metaSummary)
 
   const filteredBlocks = useMemo(() => searchPromptBlocks(blocks, searchQuery), [blocks, searchQuery])
   const groupedBlocks = useMemo(
     () => groupPromptBlocks(filteredBlocks, groupByPath),
     [filteredBlocks, groupByPath],
   )
-  const groupablePaths = useMemo(() => collectGroupablePaths(blocks), [blocks])
+  const groupablePaths = useMemo(
+    () => getGroupablePathsFromMetaSummary(metaSummary).length > 0
+      ? getGroupablePathsFromMetaSummary(metaSummary)
+      : [],
+    [metaSummary],
+  )
+  const fallbackGroupablePaths = useMemo(
+    () => (groupablePaths.length > 0 ? groupablePaths : collectGroupablePaths(blocks)),
+    [blocks, groupablePaths],
+  )
   const visibleGroupablePaths = useMemo(
     () =>
       groupByPath.trim()
-        ? groupablePaths
+        ? fallbackGroupablePaths
             .filter((path) => path.toLowerCase().includes(groupByPath.trim().toLowerCase()))
             .slice(0, 200)
-        : groupablePaths.slice(0, 200),
-    [groupByPath, groupablePaths],
+        : fallbackGroupablePaths.slice(0, 200),
+    [fallbackGroupablePaths, groupByPath],
   )
 
   useEffect(() => {
@@ -180,7 +191,8 @@ export function PromptListPanel({ node }: PanelProps) {
                             onClick={() => setSelectedPromptId(block.id)}
                             type="button"
                           >
-                            <div className="truncate text-sm font-medium text-slate-100">{block.fileName}</div>
+                            <div className="truncate text-sm font-medium text-slate-100">{block.displayName}</div>
+                            <div className="truncate text-xs text-slate-400">{block.fileName}</div>
                             <div className="truncate text-xs text-slate-500">{block.relativePath}</div>
                             <div className="mt-1 truncate text-xs text-slate-400">
                               <Trans
@@ -189,6 +201,11 @@ export function PromptListPanel({ node }: PanelProps) {
                                 values={{ keys: block.topLevelKeys.join(', ') || t('promptList.noKeys') }}
                               />
                             </div>
+                            {block.mmssType ? (
+                              <div className="mt-2 inline-flex max-w-full rounded-full border border-violet-400/25 bg-violet-400/10 px-2 py-1 text-[11px] text-violet-100/85">
+                                <span className="truncate">{block.mmssType}</span>
+                              </div>
+                            ) : null}
                           </button>
                           <button
                             className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15"

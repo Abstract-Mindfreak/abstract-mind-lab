@@ -3,7 +3,11 @@ import { createCompoundSchema, type Schema } from 'genson-js'
 import { persist } from 'zustand/middleware'
 import { buildPromptDiff, type DiffSelection } from '../lib/diffing'
 import { isDirectoryPickerSupported, pickDirectory } from '../lib/fileSystemAccess'
-import { buildPromptBlock, type PromptBlock } from '../lib/promptIndex'
+import {
+  buildPromptBlock,
+  type MetaSummary,
+  type PromptBlock,
+} from '../lib/promptIndex'
 
 type UiMessage = {
   key: string
@@ -20,6 +24,7 @@ type AppState = {
   directoryHandle: FileSystemDirectoryHandle | null
   isDirectorySupported: boolean
   isLoadingBlocks: boolean
+  metaSummary: MetaSummary | null
   promptBlocks: PromptBlock[]
   selectedPromptId: string | null
   focusedFileId: string | null
@@ -47,6 +52,7 @@ export const useAppStore = create<AppState>()(
       directoryHandle: null,
       isDirectorySupported: isDirectoryPickerSupported(),
       isLoadingBlocks: false,
+      metaSummary: null,
       promptBlocks: [],
       selectedPromptId: null,
       focusedFileId: null,
@@ -224,12 +230,16 @@ async function loadBlocksIntoStore(
   get: () => AppState,
 ) {
   try {
+    const metaSummary = await readMetaSummary(handle)
     const fileEntries = await readJsonFiles(handle)
-    const promptBlocks = fileEntries.map(buildPromptBlock).filter((block): block is PromptBlock => block !== null)
+    const promptBlocks = fileEntries
+      .map((entry) => buildPromptBlock(entry, metaSummary?.files_manifest[entry.relativePath]))
+      .filter((block): block is PromptBlock => block !== null)
     const selectedPromptId = ensureSelectedPromptId(promptBlocks, get().selectedPromptId)
 
     set({
       isLoadingBlocks: false,
+      metaSummary,
       promptBlocks,
       selectedPromptId,
       generatedSchema: null,
@@ -263,6 +273,10 @@ async function readJsonFiles(
       continue
     }
 
+    if (relativePath === 'meta_summary.json') {
+      continue
+    }
+
     if (!name.toLowerCase().endsWith('.json')) {
       continue
     }
@@ -276,6 +290,27 @@ async function readJsonFiles(
   }
 
   return entries
+}
+
+async function readMetaSummary(handle: FileSystemDirectoryHandle): Promise<MetaSummary | null> {
+  try {
+    const summaryHandle = await handle.getFileHandle('meta_summary.json')
+    const summaryFile = await summaryHandle.getFile()
+    const parsed = JSON.parse(await summaryFile.text()) as MetaSummary
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !parsed.global_stats ||
+      !parsed.files_manifest
+    ) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
 }
 
 function ensureSelectedPromptId(blocks: PromptBlock[], selectedPromptId: string | null) {

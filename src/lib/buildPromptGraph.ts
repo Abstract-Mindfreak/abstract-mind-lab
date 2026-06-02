@@ -90,7 +90,9 @@ function buildGroupedGraph(
         },
         data: {
           blockId: block.id,
+          displayName: block.displayName,
           fileName: block.fileName,
+          mmssType: block.mmssType,
           relativePath: block.relativePath,
           keyPreview: block.topLevelKeys,
           selected: block.id === selectedPromptId,
@@ -128,7 +130,9 @@ function buildUngroupedGraph(
     },
     data: {
       blockId: block.id,
+      displayName: block.displayName,
       fileName: block.fileName,
+      mmssType: block.mmssType,
       relativePath: block.relativePath,
       keyPreview: block.topLevelKeys,
       selected: block.id === selectedPromptId,

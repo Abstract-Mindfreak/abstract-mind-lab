@@ -54,6 +54,43 @@ body {
   background-color: rgba(15, 23, 42, 0.92);
 }
 
+.flexlayout__tab_button {
+  border-top: 2px solid transparent;
+}
+
+.flexlayout__tab_button--selected {
+  background: rgba(15, 23, 42, 0.98);
+}
+
+.aml-tab-accent {
+  display: inline-flex;
+  align-items: center;
+  min-height: 100%;
+  padding-top: 0.15rem;
+  border-top: 0.2rem solid transparent;
+  font-weight: 600;
+}
+
+.aml-tab-accent-prompt {
+  color: #bfdbfe;
+  border-top-color: #60a5fa;
+}
+
+.aml-tab-accent-graph {
+  color: #ddd6fe;
+  border-top-color: #818cf8;
+}
+
+.aml-tab-accent-json {
+  color: #bbf7d0;
+  border-top-color: #34d399;
+}
+
+.aml-tab-accent-diff {
+  color: #fed7aa;
+  border-top-color: #fb923c;
+}
+
 .panel-shell {
   height: 100%;
   overflow: auto;
