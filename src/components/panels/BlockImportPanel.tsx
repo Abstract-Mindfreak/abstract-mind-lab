@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { PanelProps } from './types'
+import { useAppStore } from '../../store/useAppStore'
 
 export function BlockImportPanel({ node }: PanelProps) {
   const { t } = useTranslation()
+  const triggerTreeRefresh = useAppStore((state) => state.triggerTreeRefresh)
   const [jsonInput, setJsonInput] = useState('')
   const [parsedData, setParsedData] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -14,6 +16,22 @@ export function BlockImportPanel({ node }: PanelProps) {
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [importProgress, setImportProgress] = useState<string | null>(null)
+
+  const API_URL = 'http://localhost:8005/api/music-blocks/'
+
+  const submitPayload = async (parsedData: any): Promise<boolean> => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsedData),
+      })
+      return response.ok
+    } catch (err) {
+      return false
+    }
+  }
 
   const handleJsonChange = (value: string) => {
     setJsonInput(value)
@@ -62,13 +80,14 @@ export function BlockImportPanel({ node }: PanelProps) {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleManualSubmit = async () => {
     if (!parsedData) {
       setError('No valid JSON to import')
       return
     }
 
     setLoading(true)
+    setError(null)
     try {
       const payload = {
         block_type: formData.block_type || 'Unknown',
@@ -78,29 +97,50 @@ export function BlockImportPanel({ node }: PanelProps) {
         content: parsedData,
       }
 
-      const response = await fetch('http://localhost:8005/api/music-blocks/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create block')
+      const success = await submitPayload(payload)
+      if (success) {
+        setJsonInput('')
+        setParsedData(null)
+        setFormData({ block_type: '', layer: 1, slug: '', name: '' })
+        triggerTreeRefresh()
+      } else {
+        setError('Backend server rejected the payload format.')
       }
-
-      const result = await response.json()
-      console.log('Block created:', result)
-      
-      // Reset form
-      setJsonInput('')
-      setParsedData(null)
-      setFormData({ block_type: '', layer: 1, slug: '', name: '' })
-      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import block')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    setError(null)
+    let successCount = 0
+    setImportProgress(`Processing 0 / ${files.length} files...`)
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const text = await file.text()
+      try {
+        const parsed = JSON.parse(text)
+        
+        // Auto-infer metadata blocks if fields exist inside file keys
+        if (!parsed.block_type && parsed.rhythm_patterns) parsed.block_type = 'Rhythm'
+        if (!parsed.slug && parsed.meta_id) parsed.slug = parsed.meta_id
+
+        const ok = await submitPayload(parsed)
+        if (ok) successCount++
+      } catch (err) {
+        // Continue processing remaining files even if one fails
+      }
+      setImportProgress(`Processing ${i + 1} / ${files.length} files...`)
+    }
+
+    setImportProgress(`Successfully imported ${successCount} out of ${files.length} configuration files.`)
+    triggerTreeRefresh()
   }
 
   return (
@@ -117,9 +157,31 @@ export function BlockImportPanel({ node }: PanelProps) {
         </header>
 
         <div className="space-y-4">
+          <div className="border-2 border-dashed border-slate-700 p-6 rounded-lg text-center bg-slate-950">
+            <label className="block text-sm font-medium mb-2 cursor-pointer text-cyan-400 hover:underline">
+              <Trans t={t} i18nKey="blockImport.fileUploadLabel" />
+              <input 
+                type="file" 
+                multiple 
+                accept=".json" 
+                className="hidden" 
+                onChange={handleFileChange} 
+              />
+            </label>
+            <span className="text-xs text-slate-500">
+              <Trans t={t} i18nKey="blockImport.fileUploadHint" />
+            </span>
+          </div>
+
+          {importProgress && (
+            <div className="text-xs p-2 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">
+              {importProgress}
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">
-              <Trans t={t} i18nKey="blockImport.jsonInput" />
+              <Trans t={t} i18nKey="blockImport.manualInputLabel" />
             </label>
             <textarea
               className="h-48 w-full rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 font-mono outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
@@ -188,7 +250,7 @@ export function BlockImportPanel({ node }: PanelProps) {
           <button
             className="w-full rounded-full bg-cyan-400 px-4 py-3 text-sm font-medium text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
             disabled={!parsedData || loading}
-            onClick={handleSubmit}
+            onClick={handleManualSubmit}
             type="button"
           >
             {loading ? (

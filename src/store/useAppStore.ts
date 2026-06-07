@@ -28,6 +28,8 @@ type AppState = {
   diffSelection: DiffSelection | null
   generatedSchema: Schema | null
   schemaSourceCount: number
+  selectedBlockContent: any
+  treeRefreshCounter: number
   connectDatabase: () => Promise<void>
   loadSongs: () => Promise<void>
   loadSessions: () => Promise<void>
@@ -38,6 +40,8 @@ type AppState = {
   setStatusMessage: (message: UiMessage) => void
   analyzeFilteredBlocks: (blocks: PromptBlock[]) => void
   updateDiffFromGraphSelection: (selection: GraphSelectionPayload) => void
+  setSelectedBlockContent: (content: any) => void
+  triggerTreeRefresh: () => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -54,6 +58,8 @@ export const useAppStore = create<AppState>()(
       diffSelection: null,
       generatedSchema: null,
       schemaSourceCount: 0,
+      selectedBlockContent: null,
+      treeRefreshCounter: 0,
       connectDatabase: async () => {
         try {
           set({
@@ -192,6 +198,12 @@ export const useAppStore = create<AppState>()(
                 : 'store.diffSelectionUnsupported',
           },
         })
+      },
+      setSelectedBlockContent: (content) => {
+        set({ selectedBlockContent: content })
+      },
+      triggerTreeRefresh: () => {
+        set((state) => ({ treeRefreshCounter: state.treeRefreshCounter + 1 }))
       },
     }),
     {
