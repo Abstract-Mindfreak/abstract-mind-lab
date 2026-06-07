@@ -65,6 +65,23 @@ export function buildDefaultLayout(t: TFunction) {
             }
           ],
         },
+        {
+          type: 'tabset',
+          weight: 24,
+          selected: 0,
+          children: [
+            {
+              type: 'tab',
+              name: t('tabs.blocksTree'),
+              component: 'blocks-tree',
+            },
+            {
+              type: 'tab',
+              name: t('tabs.blockImport'),
+              component: 'block-import',
+            },
+          ],
+        },
       ],
     },
   }

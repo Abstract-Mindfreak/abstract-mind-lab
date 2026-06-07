@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { createCompoundSchema, type Schema } from 'genson-js'
 import { persist } from 'zustand/middleware'
 import { buildPromptDiff, type DiffSelection } from '../lib/diffing'
-import { isDirectoryPickerSupported, pickDirectory } from '../lib/fileSystemAccess'
 import { buildPromptBlock, type PromptBlock } from '../lib/promptIndex'
+
+const API_BASE_URL = 'http://localhost:8005/api'
 
 type UiMessage = {
   key: string
@@ -16,9 +17,7 @@ type GraphSelectionPayload = {
 }
 
 type AppState = {
-  activeDirectory: string | null
-  directoryHandle: FileSystemDirectoryHandle | null
-  isDirectorySupported: boolean
+  isConnected: boolean
   isLoadingBlocks: boolean
   promptBlocks: PromptBlock[]
   selectedPromptId: string | null
@@ -29,8 +28,9 @@ type AppState = {
   diffSelection: DiffSelection | null
   generatedSchema: Schema | null
   schemaSourceCount: number
-  connectDirectory: () => Promise<void>
-  loadPromptBlocks: () => Promise<void>
+  connectDatabase: () => Promise<void>
+  loadSongs: () => Promise<void>
+  loadSessions: () => Promise<void>
   setSelectedPromptId: (promptId: string | null) => void
   setFocusedFile: (fileId: string | null) => void
   setSearchQuery: (query: string) => void
@@ -43,34 +43,33 @@ type AppState = {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      activeDirectory: null,
-      directoryHandle: null,
-      isDirectorySupported: isDirectoryPickerSupported(),
+      isConnected: false,
       isLoadingBlocks: false,
       promptBlocks: [],
       selectedPromptId: null,
       focusedFileId: null,
       searchQuery: '',
       groupByPath: '',
-      statusMessage: { key: 'store.selectDirectory' },
+      statusMessage: { key: 'store.connectDatabase' },
       diffSelection: null,
       generatedSchema: null,
       schemaSourceCount: 0,
-      connectDirectory: async () => {
+      connectDatabase: async () => {
         try {
-          const { handle, name } = await pickDirectory()
-
           set({
-            activeDirectory: name,
-            directoryHandle: handle,
             isLoadingBlocks: true,
             statusMessage: {
-              key: 'store.connectedReading',
-              values: { name },
+              key: 'store.connectingDatabase',
             },
           })
 
-          await loadBlocksIntoStore(handle, set, get)
+          await loadSongsFromDatabase(set, get)
+          set({
+            isConnected: true,
+            statusMessage: {
+              key: 'store.databaseConnected',
+            },
+          })
         } catch (error) {
           set({
             isLoadingBlocks: false,
@@ -80,25 +79,25 @@ export const useAppStore = create<AppState>()(
           })
         }
       },
-      loadPromptBlocks: async () => {
-        const handle = get().directoryHandle
-
-        if (!handle) {
-          set({
-            statusMessage: { key: 'store.directoryHandleMissing' },
-          })
-          return
-        }
-
+      loadSongs: async () => {
         set({
           isLoadingBlocks: true,
           statusMessage: {
-            key: 'store.refreshingBlocks',
-            values: { name: handle.name },
+            key: 'store.loadingSongs',
           },
         })
 
-        await loadBlocksIntoStore(handle, set, get)
+        await loadSongsFromDatabase(set, get)
+      },
+      loadSessions: async () => {
+        set({
+          isLoadingBlocks: true,
+          statusMessage: {
+            key: 'store.loadingSessions',
+          },
+        })
+
+        await loadSessionsFromDatabase(set, get)
       },
       setSelectedPromptId: (promptId) => {
         set({
@@ -197,7 +196,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'abstract-mind-lab-ui',
-      version: 3,
+      version: 4,
       migrate: (persistedState) => {
         const state = persistedState as Partial<AppState> | undefined
 
@@ -218,14 +217,18 @@ export const useAppStore = create<AppState>()(
   ),
 )
 
-async function loadBlocksIntoStore(
-  handle: FileSystemDirectoryHandle,
+async function loadSongsFromDatabase(
   set: (partial: Partial<AppState>) => void,
   get: () => AppState,
 ) {
   try {
-    const fileEntries = await readJsonFiles(handle)
-    const promptBlocks = fileEntries.map(buildPromptBlock).filter((block): block is PromptBlock => block !== null)
+    const response = await fetch(`${API_BASE_URL}/songs?limit=1000`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch songs')
+    }
+
+    const songs = await response.json()
+    const promptBlocks = songs.map((song: any) => convertSongToPromptBlock(song)).filter((block): block is PromptBlock => block !== null)
     const selectedPromptId = ensureSelectedPromptId(promptBlocks, get().selectedPromptId)
 
     set({
@@ -235,47 +238,95 @@ async function loadBlocksIntoStore(
       generatedSchema: null,
       schemaSourceCount: 0,
       statusMessage: {
-        key: 'store.connectedLoaded',
-        values: { count: promptBlocks.length, name: handle.name },
+        key: 'store.songsLoaded',
+        values: { count: promptBlocks.length },
       },
     })
   } catch (error) {
     set({
       isLoadingBlocks: false,
       statusMessage: {
-        key: error instanceof Error ? error.message : 'store.readFailed',
+        key: error instanceof Error ? error.message : 'store.loadFailed',
       },
     })
   }
 }
 
-async function readJsonFiles(
-  handle: FileSystemDirectoryHandle,
-  relativeRoot = '',
-): Promise<Array<{ fileName: string; relativePath: string; rawText: string }>> {
-  const entries: Array<{ fileName: string; relativePath: string; rawText: string }> = []
-
-  for await (const [name, childHandle] of handle.entries()) {
-    const relativePath = relativeRoot ? `${relativeRoot}/${name}` : name
-
-    if (childHandle.kind === 'directory') {
-      entries.push(...(await readJsonFiles(childHandle, relativePath)))
-      continue
+async function loadSessionsFromDatabase(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/sessions?limit=1000`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch sessions')
     }
 
-    if (!name.toLowerCase().endsWith('.json')) {
-      continue
-    }
+    const sessions = await response.json()
+    const promptBlocks = sessions.map((session: any) => convertSessionToPromptBlock(session)).filter((block): block is PromptBlock => block !== null)
+    const selectedPromptId = ensureSelectedPromptId(promptBlocks, get().selectedPromptId)
 
-    const file = await childHandle.getFile()
-    entries.push({
-      fileName: name,
-      relativePath,
-      rawText: await file.text(),
+    set({
+      isLoadingBlocks: false,
+      promptBlocks,
+      selectedPromptId,
+      generatedSchema: null,
+      schemaSourceCount: 0,
+      statusMessage: {
+        key: 'store.sessionsLoaded',
+        values: { count: promptBlocks.length },
+      },
+    })
+  } catch (error) {
+    set({
+      isLoadingBlocks: false,
+      statusMessage: {
+        key: error instanceof Error ? error.message : 'store.loadFailed',
+      },
     })
   }
+}
 
-  return entries
+function convertSongToPromptBlock(song: any): PromptBlock | null {
+  try {
+    const data = song.raw_data || song
+    const topLevelKeys = Object.keys(data).sort()
+
+    return {
+      id: song.id,
+      fileName: `${song.title}.json`,
+      relativePath: `songs/${song.id}`,
+      fileNameText: song.title.toLowerCase(),
+      relativePathText: `songs/${song.id}`.toLowerCase(),
+      topLevelKeyText: topLevelKeys.join(' ').toLowerCase(),
+      searchText: [song.title, topLevelKeys.join(' '), JSON.stringify(data)].join('\n').toLowerCase(),
+      topLevelKeys,
+      data,
+    }
+  } catch {
+    return null
+  }
+}
+
+function convertSessionToPromptBlock(session: any): PromptBlock | null {
+  try {
+    const data = session.full_payload || session
+    const topLevelKeys = Object.keys(data).sort()
+
+    return {
+      id: session.id,
+      fileName: `${session.title || session.id}.json`,
+      relativePath: `sessions/${session.id}`,
+      fileNameText: (session.title || session.id).toLowerCase(),
+      relativePathText: `sessions/${session.id}`.toLowerCase(),
+      topLevelKeyText: topLevelKeys.join(' ').toLowerCase(),
+      searchText: [(session.title || session.id), topLevelKeys.join(' '), JSON.stringify(data)].join('\n').toLowerCase(),
+      topLevelKeys,
+      data,
+    }
+  } catch {
+    return null
+  }
 }
 
 function ensureSelectedPromptId(blocks: PromptBlock[], selectedPromptId: string | null) {

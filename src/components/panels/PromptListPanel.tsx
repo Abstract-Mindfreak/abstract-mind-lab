@@ -13,10 +13,10 @@ import type { PanelProps } from './types'
 export function PromptListPanel({ node }: PanelProps) {
   const { t } = useTranslation()
   const blocks = useAppStore((state) => state.promptBlocks)
-  const connectDirectory = useAppStore((state) => state.connectDirectory)
-  const loadPromptBlocks = useAppStore((state) => state.loadPromptBlocks)
-  const activeDirectory = useAppStore((state) => state.activeDirectory)
-  const isDirectorySupported = useAppStore((state) => state.isDirectorySupported)
+  const connectDatabase = useAppStore((state) => state.connectDatabase)
+  const loadSongs = useAppStore((state) => state.loadSongs)
+  const loadSessions = useAppStore((state) => state.loadSessions)
+  const isConnected = useAppStore((state) => state.isConnected)
   const isLoadingBlocks = useAppStore((state) => state.isLoadingBlocks)
   const searchQuery = useAppStore((state) => state.searchQuery)
   const groupByPath = useAppStore((state) => state.groupByPath)
@@ -72,32 +72,36 @@ export function PromptListPanel({ node }: PanelProps) {
         <div className="flex flex-wrap items-center gap-3">
           <button
             className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-            disabled={!isDirectorySupported || isLoadingBlocks}
-            onClick={() => void connectDirectory()}
+            disabled={isLoadingBlocks}
+            onClick={() => void connectDatabase()}
             type="button"
           >
             <Trans
               t={t}
-              i18nKey={activeDirectory ? 'promptList.reconnectDirectory' : 'promptList.connectDirectory'}
+              i18nKey={isConnected ? 'promptList.reconnectDatabase' : 'promptList.connectDatabase'}
             />
           </button>
           <button
             className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!activeDirectory || isLoadingBlocks}
-            onClick={() => void loadPromptBlocks()}
+            disabled={!isConnected || isLoadingBlocks}
+            onClick={() => void loadSongs()}
             type="button"
           >
-            <Trans t={t} i18nKey="promptList.refreshBlocks" />
+            <Trans t={t} i18nKey="promptList.loadSongs" />
+          </button>
+          <button
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!isConnected || isLoadingBlocks}
+            onClick={() => void loadSessions()}
+            type="button"
+          >
+            <Trans t={t} i18nKey="promptList.loadSessions" />
           </button>
           <span className="text-xs text-slate-400">
-            {isDirectorySupported ? (
-              activeDirectory ? (
-                <Trans t={t} i18nKey="promptList.directoryName" values={{ name: activeDirectory }} />
-              ) : (
-                <Trans t={t} i18nKey="promptList.directoryNotSelected" />
-              )
+            {isConnected ? (
+              <Trans t={t} i18nKey="promptList.databaseConnected" />
             ) : (
-              <Trans t={t} i18nKey="promptList.directoryApiUnavailable" />
+              <Trans t={t} i18nKey="promptList.databaseNotConnected" />
             )}
           </span>
         </div>
