@@ -1,28 +1,10 @@
 export type PromptBlockData = Record<string, unknown>
 
-export type PromptMetaEntry = {
-  mmss_type?: string | null
-  size?: number
-  smart_name?: string
-  top_level_keys?: string[]
-}
-
-export type MetaSummary = {
-  files_manifest: Record<string, PromptMetaEntry>
-  global_stats: {
-    key_path_frequency: Record<string, number>
-    total_files: number
-  }
-}
-
 export type PromptBlock = {
   id: string
-  displayName: string
   fileName: string
-  mmssType: string | null
   relativePath: string
   searchText: string
-  sizeBytes: number | null
   fileNameText: string
   relativePathText: string
   topLevelKeyText: string
@@ -53,7 +35,7 @@ export function getValueByPath(source: unknown, path: string): unknown {
     }, source)
 }
 
-export function buildPromptBlock(entry: JsonFileEntry, meta?: PromptMetaEntry): PromptBlock | null {
+export function buildPromptBlock(entry: JsonFileEntry): PromptBlock | null {
   try {
     const parsed = JSON.parse(entry.rawText) as unknown
 
@@ -62,24 +44,16 @@ export function buildPromptBlock(entry: JsonFileEntry, meta?: PromptMetaEntry): 
     }
 
     const data = parsed as PromptBlockData
-    const topLevelKeys =
-      meta?.top_level_keys && meta.top_level_keys.length > 0
-        ? [...meta.top_level_keys].sort()
-        : Object.keys(data).sort()
-    const displayName = meta?.smart_name?.trim() || entry.fileName
-    const mmssType = meta?.mmss_type?.trim() || inferMmssType(data)
+    const topLevelKeys = Object.keys(data).sort()
 
     return {
       id: entry.relativePath,
-      displayName,
       fileName: entry.fileName,
-      mmssType,
       relativePath: entry.relativePath,
-      sizeBytes: typeof meta?.size === 'number' ? meta.size : entry.rawText.length,
       fileNameText: entry.fileName.toLowerCase(),
       relativePathText: entry.relativePath.toLowerCase(),
       topLevelKeyText: topLevelKeys.join(' ').toLowerCase(),
-      searchText: [displayName, mmssType, entry.fileName, entry.relativePath, topLevelKeys.join(' '), entry.rawText]
+      searchText: [entry.fileName, entry.relativePath, topLevelKeys.join(' '), entry.rawText]
         .join('\n')
         .toLowerCase(),
       topLevelKeys,
@@ -149,16 +123,6 @@ export function collectGroupablePaths(blocks: PromptBlock[]) {
     .map(([path]) => path)
 }
 
-export function getGroupablePathsFromMetaSummary(metaSummary: MetaSummary | null) {
-  if (!metaSummary) {
-    return []
-  }
-
-  return Object.entries(metaSummary.global_stats.key_path_frequency)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([path]) => path)
-}
-
 function collectPaths(value: unknown, prefix: string, pathUsage: Map<string, number>) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return
@@ -179,14 +143,6 @@ function scorePromptBlock(block: PromptBlock, tokens: string[]) {
 
   for (const token of tokens) {
     let tokenScore = 0
-
-    if (block.displayName.toLowerCase() === token) {
-      tokenScore += 140
-    } else if (block.displayName.toLowerCase().startsWith(token)) {
-      tokenScore += 96
-    } else if (block.displayName.toLowerCase().includes(token)) {
-      tokenScore += 64
-    }
 
     if (block.fileNameText === token) {
       tokenScore += 120
@@ -236,24 +192,4 @@ function formatGroupLabel(value: unknown) {
   }
 
   return String(value)
-}
-
-function inferMmssType(data: PromptBlockData) {
-  const payloadType = getValueByPath(data, 'payload.type')
-  const category = getValueByPath(data, 'category')
-  const architecture = getValueByPath(data, 'data.architecture')
-
-  if (typeof payloadType === 'string' && payloadType.trim()) {
-    return payloadType
-  }
-
-  if (typeof category === 'string' && category.trim()) {
-    return category
-  }
-
-  if (typeof architecture === 'string' && architecture.trim()) {
-    return architecture
-  }
-
-  return null
 }

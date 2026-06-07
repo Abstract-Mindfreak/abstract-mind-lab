@@ -5,8 +5,7 @@ const diffPatcher = create({
   objectHash: (value) => JSON.stringify(value),
 })
 
-export type PairDiffSelection = {
-  kind: 'pair'
+export type DiffSelection = {
   sourceId: string
   sourceLabel: string
   sourcePath: string
@@ -16,39 +15,14 @@ export type PairDiffSelection = {
   delta: Delta | null
 }
 
-export type MultiDiffSelection = {
-  kind: 'multi'
-  items: Array<{
-    id: string
-    label: string
-    path: string
-    topLevelKeys: string[]
-  }>
-}
-
-export type DiffSelection = PairDiffSelection | MultiDiffSelection
-
-export function buildPromptDiff(source: PromptBlock, target: PromptBlock): PairDiffSelection {
+export function buildPromptDiff(source: PromptBlock, target: PromptBlock): DiffSelection {
   return {
-    kind: 'pair',
     sourceId: source.id,
-    sourceLabel: source.displayName,
+    sourceLabel: source.fileName,
     sourcePath: source.relativePath,
     targetId: target.id,
-    targetLabel: target.displayName,
+    targetLabel: target.fileName,
     targetPath: target.relativePath,
     delta: diffPatcher.diff(source.data, target.data) ?? null,
-  }
-}
-
-export function buildMultiPromptSelection(blocks: PromptBlock[]): MultiDiffSelection {
-  return {
-    kind: 'multi',
-    items: blocks.map((block) => ({
-      id: block.id,
-      label: block.displayName,
-      path: block.relativePath,
-      topLevelKeys: block.topLevelKeys,
-    })),
   }
 }

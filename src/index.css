@@ -17,10 +17,6 @@
   font-weight: 400;
 }
 
-.aml-app {
-  --aml-font-size: 14px;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -48,7 +44,7 @@ body {
   --color-6: rgba(14, 165, 233, 0.72);
   --color-drag1: rgba(8, 145, 178, 0.2);
   --color-drag2: rgba(34, 197, 94, 0.36);
-  --font-size: var(--aml-font-size);
+  --font-size: 14px;
   --font-family:
     Inter, "Segoe UI", sans-serif;
 }
@@ -56,109 +52,6 @@ body {
 .flexlayout__tabset,
 .flexlayout__tab {
   background-color: rgba(15, 23, 42, 0.92);
-}
-
-.flexlayout__tab_button {
-  border-top: 2px solid transparent;
-}
-
-.flexlayout__tab_button--selected {
-  background: rgba(15, 23, 42, 0.98);
-}
-
-.aml-tab-accent {
-  display: inline-flex;
-  align-items: center;
-  min-height: 100%;
-  padding-top: 0.15rem;
-  border-top: 0.2rem solid transparent;
-  font-weight: 600;
-}
-
-.aml-tab-accent-prompt {
-  color: #bfdbfe;
-  border-top-color: #60a5fa;
-}
-
-.aml-tab-accent-graph {
-  color: #ddd6fe;
-  border-top-color: #818cf8;
-}
-
-.aml-tab-accent-json {
-  color: #bbf7d0;
-  border-top-color: #34d399;
-}
-
-.aml-tab-accent-diff {
-  color: #fed7aa;
-  border-top-color: #fb923c;
-}
-
-.aml-tab-accent-terminal {
-  color: #99f6e4;
-  border-top-color: #14b8a6;
-}
-
-.aml-tab-accent-settings {
-  color: #f5d0fe;
-  border-top-color: #d946ef;
-}
-
-.aml-tabset-add {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.82);
-  color: #cbd5e1;
-  width: 1.8rem;
-  height: 1.8rem;
-  cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
-}
-
-.aml-tabset-add:hover {
-  border-color: rgba(34, 211, 238, 0.5);
-  background: rgba(8, 47, 73, 0.95);
-  color: #cffafe;
-}
-
-.aml-theme-light {
-  color: #0f172a;
-  background:
-    radial-gradient(circle at top, rgba(14, 165, 233, 0.08), transparent 28%),
-    radial-gradient(circle at right, rgba(16, 185, 129, 0.08), transparent 32%),
-    #e2e8f0;
-}
-
-.aml-theme-light .flexlayout__layout {
-  --color-text: #0f172a;
-  --color-base: rgba(255, 255, 255, 0.94);
-  --color-1: rgba(248, 250, 252, 0.98);
-  --color-2: rgba(226, 232, 240, 0.98);
-  --color-3: rgba(203, 213, 225, 0.98);
-  --color-4: rgba(148, 163, 184, 0.98);
-}
-
-.aml-theme-light .panel-card {
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.aml-theme-rounded .panel-card,
-.aml-theme-rounded .flexlayout__tab_button,
-.aml-theme-rounded .flexlayout__border_button {
-  border-radius: 1rem;
-}
-
-.aml-font-x-small {
-  --aml-font-size: 12px;
-}
-
-.aml-font-medium {
-  --aml-font-size: 14px;
-}
-
-.aml-font-large {
-  --aml-font-size: 16px;
 }
 
 .panel-shell {

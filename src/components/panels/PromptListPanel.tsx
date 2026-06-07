@@ -4,7 +4,6 @@ import { Trans, useTranslation } from 'react-i18next'
 import {
   collectGroupablePaths,
   getValueByPath,
-  getGroupablePathsFromMetaSummary,
   groupPromptBlocks,
   searchPromptBlocks,
 } from '../../lib/promptIndex'
@@ -21,38 +20,27 @@ export function PromptListPanel({ node }: PanelProps) {
   const isLoadingBlocks = useAppStore((state) => state.isLoadingBlocks)
   const searchQuery = useAppStore((state) => state.searchQuery)
   const groupByPath = useAppStore((state) => state.groupByPath)
-  const openPromptInNewTab = useAppStore((state) => state.openPromptInNewTab)
-  const openPromptInPreview = useAppStore((state) => state.openPromptInPreview)
   const selectedPromptId = useAppStore((state) => state.selectedPromptId)
+  const setFocusedFile = useAppStore((state) => state.setFocusedFile)
   const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const setGroupByPath = useAppStore((state) => state.setGroupByPath)
   const setSelectedPromptId = useAppStore((state) => state.setSelectedPromptId)
   const analyzeFilteredBlocks = useAppStore((state) => state.analyzeFilteredBlocks)
-  const metaSummary = useAppStore((state) => state.metaSummary)
 
   const filteredBlocks = useMemo(() => searchPromptBlocks(blocks, searchQuery), [blocks, searchQuery])
   const groupedBlocks = useMemo(
     () => groupPromptBlocks(filteredBlocks, groupByPath),
     [filteredBlocks, groupByPath],
   )
-  const groupablePaths = useMemo(
-    () => getGroupablePathsFromMetaSummary(metaSummary).length > 0
-      ? getGroupablePathsFromMetaSummary(metaSummary)
-      : [],
-    [metaSummary],
-  )
-  const fallbackGroupablePaths = useMemo(
-    () => (groupablePaths.length > 0 ? groupablePaths : collectGroupablePaths(blocks)),
-    [blocks, groupablePaths],
-  )
+  const groupablePaths = useMemo(() => collectGroupablePaths(blocks), [blocks])
   const visibleGroupablePaths = useMemo(
     () =>
       groupByPath.trim()
-        ? fallbackGroupablePaths
+        ? groupablePaths
             .filter((path) => path.toLowerCase().includes(groupByPath.trim().toLowerCase()))
             .slice(0, 200)
-        : fallbackGroupablePaths.slice(0, 200),
-    [fallbackGroupablePaths, groupByPath],
+        : groupablePaths.slice(0, 200),
+    [groupByPath, groupablePaths],
   )
 
   useEffect(() => {
@@ -185,24 +173,14 @@ export function PromptListPanel({ node }: PanelProps) {
                             : 'border-slate-800 bg-slate-900/60 hover:border-slate-600'
                         }`}
                         key={block.id}
-                        onMouseDown={(event) => {
-                          if (event.button === 1) {
-                            event.preventDefault()
-                            openPromptInNewTab(block.id)
-                          }
-                        }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <button
                             className="min-w-0 flex-1 text-left"
-                            onClick={() => {
-                              setSelectedPromptId(block.id)
-                              openPromptInPreview(block.id)
-                            }}
+                            onClick={() => setSelectedPromptId(block.id)}
                             type="button"
                           >
-                            <div className="truncate text-sm font-medium text-slate-100">{block.displayName}</div>
-                            <div className="truncate text-xs text-slate-400">{block.fileName}</div>
+                            <div className="truncate text-sm font-medium text-slate-100">{block.fileName}</div>
                             <div className="truncate text-xs text-slate-500">{block.relativePath}</div>
                             <div className="mt-1 truncate text-xs text-slate-400">
                               <Trans
@@ -211,25 +189,13 @@ export function PromptListPanel({ node }: PanelProps) {
                                 values={{ keys: block.topLevelKeys.join(', ') || t('promptList.noKeys') }}
                               />
                             </div>
-                            {block.mmssType ? (
-                              <div className="mt-2 inline-flex max-w-full rounded-full border border-violet-400/25 bg-violet-400/10 px-2 py-1 text-[11px] text-violet-100/85">
-                                <span className="truncate">{block.mmssType}</span>
-                              </div>
-                            ) : null}
                           </button>
                           <button
                             className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/15"
-                            onClick={() => openPromptInPreview(block.id)}
+                            onClick={() => setFocusedFile(block.id)}
                             type="button"
                           >
                             <Trans t={t} i18nKey="promptList.openFileGraph" />
-                          </button>
-                          <button
-                            className="rounded-lg border border-violet-400/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100 transition hover:border-violet-300 hover:bg-violet-400/15"
-                            onClick={() => openPromptInNewTab(block.id)}
-                            type="button"
-                          >
-                            <Trans t={t} i18nKey="promptList.openInNewTab" />
                           </button>
                         </div>
                         {groupByPath ? (

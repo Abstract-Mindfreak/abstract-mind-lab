@@ -30,63 +30,34 @@ export function DiffAnalyticsPanel({ node }: PanelProps) {
 
         {diffSelection ? (
           <div className="space-y-4">
-            {diffSelection.kind === 'pair' ? (
-              <>
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-                  <div className="font-medium text-slate-100">
-                    <Trans
-                      t={t}
-                      i18nKey="diffAnalytics.selectionTitle"
-                      values={{
-                        source: diffSelection.sourceLabel,
-                        target: diffSelection.targetLabel,
-                      }}
-                    />
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    <Trans
-                      t={t}
-                      i18nKey="diffAnalytics.selectionSubtitle"
-                      values={{
-                        sourcePath: diffSelection.sourcePath,
-                        targetPath: diffSelection.targetPath,
-                      }}
-                    />
-                  </div>
-                </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
+              <div className="font-medium text-slate-100">
+                <Trans
+                  t={t}
+                  i18nKey="diffAnalytics.selectionTitle"
+                  values={{
+                    source: diffSelection.sourceLabel,
+                    target: diffSelection.targetLabel,
+                  }}
+                />
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                <Trans
+                  t={t}
+                  i18nKey="diffAnalytics.selectionSubtitle"
+                  values={{
+                    sourcePath: diffSelection.sourcePath,
+                    targetPath: diffSelection.targetPath,
+                  }}
+                />
+              </div>
+            </div>
 
-                {diffSelection.delta ? (
-                  <DiffTree delta={diffSelection.delta} path="$" />
-                ) : (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-                    <Trans t={t} i18nKey="diffAnalytics.equal" />
-                  </div>
-                )}
-              </>
+            {diffSelection.delta ? (
+              <DiffTree delta={diffSelection.delta} path="$" />
             ) : (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-                <div className="mb-3 font-medium text-slate-100">
-                  <Trans
-                    t={t}
-                    i18nKey="diffAnalytics.multiSelectionTitle"
-                    values={{ count: diffSelection.items.length }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  {diffSelection.items.map((item) => (
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3" key={item.id}>
-                      <div className="text-sm font-medium text-slate-100">{item.label}</div>
-                      <div className="text-xs text-slate-500">{item.path}</div>
-                      <div className="mt-1 text-xs text-slate-400">
-                        <Trans
-                          t={t}
-                          i18nKey="diffAnalytics.multiSelectionKeys"
-                          values={{ keys: item.topLevelKeys.join(', ') || 'нет' }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Trans t={t} i18nKey="diffAnalytics.equal" />
               </div>
             )}
           </div>

@@ -1,23 +1,30 @@
 import type { Edge, Node } from '@xyflow/react'
+import { buildFocusedFileGraph } from './buildFocusedFileGraph'
 import { getValueByPath, groupPromptBlocks, searchPromptBlocks, type PromptBlock } from './promptIndex'
 
 type BuildPromptGraphArgs = {
   blocks: PromptBlock[]
-  graphNodeLayouts: Record<string, { width?: number; height?: number; x: number; y: number }>
   selectedPromptId: string | null
+  focusedFileId: string | null
   searchQuery: string
   groupByPath: string
-  showEdgeLabels: boolean
 }
 
 export function buildPromptGraph({
   blocks,
-  graphNodeLayouts,
   selectedPromptId,
+  focusedFileId,
   searchQuery,
   groupByPath,
-  showEdgeLabels,
 }: BuildPromptGraphArgs): { nodes: Node[]; edges: Edge[] } {
+  if (focusedFileId) {
+    const focusedBlock = blocks.find((block) => block.id === focusedFileId)
+
+    if (focusedBlock) {
+      return buildFocusedFileGraph({ block: focusedBlock })
+    }
+  }
+
   const filteredBlocks = searchPromptBlocks(blocks, searchQuery)
 
   if (filteredBlocks.length === 0) {
@@ -41,18 +48,16 @@ export function buildPromptGraph({
   }
 
   if (groupByPath.trim()) {
-    return buildGroupedGraph(filteredBlocks, graphNodeLayouts, selectedPromptId, groupByPath, showEdgeLabels)
+    return buildGroupedGraph(filteredBlocks, selectedPromptId, groupByPath)
   }
 
-  return buildUngroupedGraph(filteredBlocks.slice(0, 36), graphNodeLayouts, selectedPromptId)
+  return buildUngroupedGraph(filteredBlocks.slice(0, 36), selectedPromptId)
 }
 
 function buildGroupedGraph(
   blocks: PromptBlock[],
-  graphNodeLayouts: Record<string, { width?: number; height?: number; x: number; y: number }>,
   selectedPromptId: string | null,
   groupByPath: string,
-  showEdgeLabels: boolean,
 ): { nodes: Node[]; edges: Edge[] } {
   const groups = [...groupPromptBlocks(blocks, groupByPath).entries()].slice(0, 12)
   const nodes: Node[] = []
@@ -64,11 +69,7 @@ function buildGroupedGraph(
     nodes.push({
       id: groupNodeId,
       type: 'groupSummary',
-      position: graphNodeLayouts[groupNodeId] ?? { x: 0, y: groupIndex * 220 },
-      style: {
-        width: graphNodeLayouts[groupNodeId]?.width,
-        height: graphNodeLayouts[groupNodeId]?.height,
-      },
+      position: { x: 0, y: groupIndex * 220 },
       data: {
         label,
         count: groupBlocks.length,
@@ -83,19 +84,13 @@ function buildGroupedGraph(
       nodes.push({
         id: blockNodeId,
         type: 'promptBlock',
-        position: graphNodeLayouts[blockNodeId] ?? {
+        position: {
           x: 320 + blockIndex * 300,
           y: groupIndex * 220,
         },
-        style: {
-          width: graphNodeLayouts[blockNodeId]?.width,
-          height: graphNodeLayouts[blockNodeId]?.height,
-        },
         data: {
           blockId: block.id,
-          displayName: block.displayName,
           fileName: block.fileName,
-          mmssType: block.mmssType,
           relativePath: block.relativePath,
           keyPreview: block.topLevelKeys,
           selected: block.id === selectedPromptId,
@@ -108,7 +103,7 @@ function buildGroupedGraph(
         target: blockNodeId,
         type: 'smoothstep',
         animated: block.id === selectedPromptId,
-        label: showEdgeLabels ? formatEdgeLabel(getValueByPath(block.data, groupByPath)) : undefined,
+        label: formatEdgeLabel(getValueByPath(block.data, groupByPath)),
         data: {
           sourcePromptId: undefined,
           targetPromptId: block.id,
@@ -122,25 +117,18 @@ function buildGroupedGraph(
 
 function buildUngroupedGraph(
   blocks: PromptBlock[],
-  graphNodeLayouts: Record<string, { width?: number; height?: number; x: number; y: number }>,
   selectedPromptId: string | null,
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = blocks.map((block, index) => ({
     id: `block:${block.id}`,
     type: 'promptBlock',
-    position: graphNodeLayouts[`block:${block.id}`] ?? {
+    position: {
       x: (index % 4) * 320,
       y: Math.floor(index / 4) * 220,
     },
-    style: {
-      width: graphNodeLayouts[`block:${block.id}`]?.width,
-      height: graphNodeLayouts[`block:${block.id}`]?.height,
-    },
     data: {
       blockId: block.id,
-      displayName: block.displayName,
       fileName: block.fileName,
-      mmssType: block.mmssType,
       relativePath: block.relativePath,
       keyPreview: block.topLevelKeys,
       selected: block.id === selectedPromptId,
