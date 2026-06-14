@@ -128,12 +128,39 @@ export function BlockImportPanel({ node }: PanelProps) {
         const parsed = JSON.parse(text)
         
         // Auto-infer metadata blocks if fields exist inside file keys
-        if (!parsed.block_type && parsed.rhythm_patterns) parsed.block_type = 'Rhythm'
-        if (!parsed.slug && parsed.meta_id) parsed.slug = parsed.meta_id
+        let block_type = 'Unknown'
+        let slug = `block_${Date.now()}_${i}`
+        let layer = 1
+        let name = null
 
-        const ok = await submitPayload(parsed)
+        if (parsed.rhythm_patterns) block_type = 'Rhythm'
+        else if (parsed.pitch || parsed.scale || parsed.harmony) block_type = 'Logic'
+        else if (parsed.reverb || parsed.delay || parsed.spatial) block_type = 'Space'
+        else if (parsed.waveform || parsed.filter || parsed.envelope) block_type = 'Timbre'
+        else if (parsed.attr?.domain) block_type = parsed.attr.domain
+
+        if (parsed.meta_id) slug = parsed.meta_id
+        else if (parsed.slug) slug = parsed.slug
+        else if (parsed.id) slug = `file_${parsed.id}`
+
+        if (parsed.attr?.layer) layer = parsed.attr.layer
+        else if (parsed.layer) layer = parsed.layer
+
+        if (parsed.legacy?.block_name) name = parsed.legacy.block_name
+        else if (parsed.name) name = parsed.name
+
+        const payload = {
+          block_type,
+          layer,
+          slug,
+          name,
+          content: parsed,
+        }
+
+        const ok = await submitPayload(payload)
         if (ok) successCount++
       } catch (err) {
+        console.error(`Failed to process file ${file.name}:`, err)
         // Continue processing remaining files even if one fails
       }
       setImportProgress(`Processing ${i + 1} / ${files.length} files...`)
